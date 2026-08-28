@@ -1,0 +1,46 @@
+services:
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"    # Solo localhost, para depuración y backups
+    volumes:
+      - avv_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Backend FastAPI ────────────────────────────────────────────
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8000"   # Solo localhost; Caddy del host hace el proxy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./old-data:/app/old-data  # Para script de migración
+
+  # ── Frontend: Vue 3 SPA servida por Nginx ─────────────────────
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:80"     # Solo localhost; Caddy del host hace el proxy
+
+volumes:
+  avv_pgdata:
+    name: avv_pgdata

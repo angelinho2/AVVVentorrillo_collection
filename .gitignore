@@ -1,2 +1,36 @@
-.obsidian/
+# Entorno
+.env
+.env.local
+
+# Backups de base de datos
+backups/
+
+# Notas internas y borradores
 notas/
+.obsidian/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+*.egg
+
+# Node / frontend build
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

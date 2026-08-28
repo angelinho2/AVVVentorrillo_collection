@@ -1,0 +1,301 @@
+<template>
+  <div class="page">
+    <h1 style="margin-bottom:1.2rem">Panel Admin</h1>
+
+    <!-- Pestañas -->
+    <div class="tab-bar">
+      <button v-for="t in tabs" :key="t.key"
+              class="tab-btn" :class="{ active: tab === t.key }"
+              @click="tab = t.key">{{ t.label }}</button>
+    </div>
+
+    <!-- ── REPORTE ─────────────────────────────────────────── -->
+    <div v-if="tab === 'reporte'" class="stack" style="margin-top:1rem">
+      <div class="card">
+        <p class="section-title">Informe diario</p>
+        <div class="row" style="margin-bottom:0.5rem">
+          <div>
+            <label for="fecha-reporte">Fecha</label>
+            <input id="fecha-reporte" class="input" type="date" v-model="fechaReporte" />
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="btn btn-primary" @click="cargarReporte">Ver</button>
+          </div>
+        </div>
+        <div v-if="reporte">
+          <table class="tabla">
+            <thead><tr><th>Equipo</th><th>Aportaciones</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr v-for="e in reporte.por_equipo" :key="e.equipo">
+                <td>{{ e.equipo }}</td>
+                <td>{{ e.num_aportaciones }}</td>
+                <td><strong>{{ formatEur(e.total) }}</strong></td>
+              </tr>
+              <tr style="border-top:2px solid var(--clr-border)">
+                <td><strong>TOTAL</strong></td>
+                <td><strong>{{ reporte.total_general.num_aportaciones }}</strong></td>
+                <td><strong>{{ formatEur(reporte.total_general.total) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Dashboard por año -->
+      <div class="card">
+        <p class="section-title">Dashboard por año</p>
+        <div class="row" style="margin-bottom:0.5rem">
+          <div>
+            <label for="anio-dash">Año campaña</label>
+            <select id="anio-dash" class="select" v-model="anioDash">
+              <option value="">Todos</option>
+              <option v-for="y in anios" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:0.5rem">
+            <button class="btn btn-primary" @click="cargarDashboard">Ver</button>
+            <a class="btn btn-success" :href="`/api/reportes/exportar-excel${anioDash ? '?anio='+anioDash : ''}`"
+               :style="{ pointerEvents: !auth.token ? 'none' : 'auto' }"
+               @click.prevent="exportarExcel">
+              📊 Excel
+            </a>
+          </div>
+        </div>
+        <div v-if="dashboard">
+          <div class="stat-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem">
+            <div class="card" style="text-align:center">
+              <div style="font-size:1.6rem;font-weight:700;color:var(--clr-success)">
+                {{ formatEur(dashboard.total) }}
+              </div>
+              <div style="font-size:0.8rem;color:var(--clr-muted)">Total recaudado</div>
+            </div>
+            <div class="card" style="text-align:center">
+              <div style="font-size:1.6rem;font-weight:700;color:var(--clr-primary)">
+                {{ dashboard.por_anio.reduce((s,r) => s + r.num_aportaciones, 0) }}
+              </div>
+              <div style="font-size:0.8rem;color:var(--clr-muted)">Aportaciones</div>
+            </div>
+          </div>
+          <table class="tabla">
+            <thead><tr><th>Año</th><th>Aportaciones</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr v-for="r in dashboard.por_anio" :key="r.anio">
+                <td>{{ r.anio }}</td>
+                <td>{{ r.num_aportaciones }}</td>
+                <td><strong>{{ formatEur(r.total) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EQUIPOS ─────────────────────────────────────────── -->
+    <div v-if="tab === 'equipos'" class="stack" style="margin-top:1rem">
+      <div class="card stack">
+        <p class="section-title">Crear equipo</p>
+        <div class="row">
+          <input id="nuevo-equipo" class="input" type="text" v-model="nuevoEquipo" placeholder="Nombre del equipo" />
+          <button class="btn btn-primary" @click="crearEquipo" :disabled="!nuevoEquipo.trim()">Crear</button>
+        </div>
+      </div>
+      <div class="card">
+        <p class="section-title">Equipos</p>
+        <div v-for="e in equipos" :key="e.id" class="item-row">
+          <span :style="{ opacity: e.activo ? 1 : 0.45 }">{{ e.nombre }}</span>
+          <div style="display:flex;gap:0.4rem">
+            <button class="btn btn-ghost btn-sm" @click="toggleEquipo(e)">
+              {{ e.activo ? '🟢 Activo' : '🔴 Inactivo' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COBRADORES ──────────────────────────────────────── -->
+    <div v-if="tab === 'usuarios'" class="stack" style="margin-top:1rem">
+      <div class="card stack">
+        <p class="section-title">Nuevo cobrador</p>
+        <div>
+          <label for="nu-usuario">Nombre de usuario</label>
+          <input id="nu-usuario" class="input" type="text" v-model="nuevoUser.nombre_usuario" placeholder="nombre_usuario" />
+        </div>
+        <div>
+          <label for="nu-pass">Contraseña inicial</label>
+          <input id="nu-pass" class="input" type="password" v-model="nuevoUser.password" placeholder="••••••••" />
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <input id="nu-admin" type="checkbox" v-model="nuevoUser.es_admin" />
+          <label for="nu-admin" style="margin:0;font-size:0.9rem">Administrador</label>
+        </div>
+        <button class="btn btn-primary" @click="crearUsuario"
+                :disabled="!nuevoUser.nombre_usuario || !nuevoUser.password">
+          Crear usuario
+        </button>
+      </div>
+      <div class="card">
+        <p class="section-title">Usuarios</p>
+        <div v-for="u in usuarios" :key="u.id" class="item-row">
+          <div>
+            <span :style="{ opacity: u.activo ? 1 : 0.45 }">{{ u.nombre_usuario }}</span>
+            <span v-if="u.es_admin" class="badge badge-warning" style="margin-left:0.4rem;font-size:0.7rem">admin</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" @click="toggleUsuario(u)">
+            {{ u.activo ? '🟢 Activo' : '🔴 Inactivo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CALLES ──────────────────────────────────────────── -->
+    <div v-if="tab === 'calles'" class="stack" style="margin-top:1rem">
+      <div class="card stack">
+        <p class="section-title">Nueva calle</p>
+        <div class="row">
+          <input id="nueva-calle" class="input" type="text" v-model="nuevaCalle" placeholder="Nombre de la calle" />
+          <button class="btn btn-primary" @click="crearCalle" :disabled="!nuevaCalle.trim()">Crear</button>
+        </div>
+      </div>
+      <div class="card">
+        <p class="section-title">Calles registradas ({{ calles.length }})</p>
+        <div v-for="c in calles" :key="c.id" class="item-row">
+          <span>{{ c.nombre }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="toast" class="toast" :class="{ error: toastError }">{{ toast }}</div>
+
+    <button class="btn btn-ghost btn-sm" style="color:var(--clr-danger);margin-top:1.5rem"
+            @click="auth.logout(); router.push('/login')">
+      🚪 Cerrar sesión
+    </button>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import api from '../api/client.js'
+import { useAuthStore } from '../stores/auth.js'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+const tabs = [
+  { key: 'reporte', label: '📊 Reportes' },
+  { key: 'equipos', label: '👥 Equipos' },
+  { key: 'usuarios', label: '🙋 Cobradores' },
+  { key: 'calles',  label: '🛣️ Calles' },
+]
+const tab = ref('reporte')
+
+const anios = ref([2024, 2025, 2026])
+const fechaReporte = ref(new Date().toISOString().slice(0, 10))
+const anioDash = ref(new Date().getFullYear())
+const reporte = ref(null)
+const dashboard = ref(null)
+const equipos = ref([])
+const usuarios = ref([])
+const calles = ref([])
+const nuevoEquipo = ref('')
+const nuevaCalle = ref('')
+const nuevoUser = ref({ nombre_usuario: '', password: '', es_admin: false })
+const toast = ref('')
+const toastError = ref(false)
+
+function formatEur(n) {
+  return Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
+}
+
+onMounted(async () => {
+  await Promise.all([cargarEquipos(), cargarUsuarios(), cargarCalles()])
+  await cargarReporte()
+  await cargarDashboard()
+})
+
+async function cargarReporte() {
+  const res = await api.get('/reportes/diario', { params: { fecha: fechaReporte.value } })
+  reporte.value = res.data
+}
+async function cargarDashboard() {
+  const res = await api.get('/reportes/dashboard', { params: { anio: anioDash.value || undefined } })
+  dashboard.value = res.data
+}
+async function cargarEquipos() {
+  const res = await api.get('/equipos')
+  equipos.value = res.data
+}
+async function cargarUsuarios() {
+  const res = await api.get('/usuarios')
+  usuarios.value = res.data
+}
+async function cargarCalles() {
+  const res = await api.get('/calles')
+  calles.value = res.data
+}
+
+async function crearEquipo() {
+  try {
+    await api.post('/equipos', { nombre: nuevoEquipo.value.trim() })
+    nuevoEquipo.value = ''
+    mostrarToast('Equipo creado')
+    cargarEquipos()
+  } catch (e) { mostrarToast(e.response?.data?.detail || 'Error', true) }
+}
+async function toggleEquipo(e) {
+  await api.patch(`/equipos/${e.id}`, { activo: !e.activo })
+  cargarEquipos()
+}
+async function crearUsuario() {
+  try {
+    await api.post('/usuarios', { ...nuevoUser.value })
+    nuevoUser.value = { nombre_usuario: '', password: '', es_admin: false }
+    mostrarToast('Usuario creado')
+    cargarUsuarios()
+  } catch (e) { mostrarToast(e.response?.data?.detail || 'Error', true) }
+}
+async function toggleUsuario(u) {
+  await api.patch(`/usuarios/${u.id}`, { activo: !u.activo })
+  cargarUsuarios()
+}
+async function crearCalle() {
+  try {
+    await api.post('/calles', { nombre: nuevaCalle.value.trim() })
+    nuevaCalle.value = ''
+    mostrarToast('Calle creada')
+    cargarCalles()
+  } catch (e) { mostrarToast(e.response?.data?.detail || 'Error', true) }
+}
+
+async function exportarExcel() {
+  const url = `/api/reportes/exportar-excel${anioDash.value ? '?anio=' + anioDash.value : ''}`
+  const res = await api.get(url, { responseType: 'blob' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(res.data)
+  a.download = `aportaciones_${anioDash.value || 'todos'}.xlsx`
+  a.click()
+}
+
+function mostrarToast(msg, esError = false) {
+  toast.value = msg; toastError.value = esError
+  setTimeout(() => { toast.value = '' }, 2500)
+}
+</script>
+
+<style scoped>
+.tab-bar { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 2px; }
+.tab-btn {
+  padding: 0.5rem 0.9rem; border-radius: var(--radius);
+  border: 1.5px solid var(--clr-border);
+  background: transparent; color: var(--clr-muted);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: all var(--transition);
+}
+.tab-btn.active { background: var(--clr-primary); border-color: var(--clr-primary); color: #fff; }
+.item-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0; border-bottom: 1px solid var(--clr-surface2);
+}
+.item-row:last-child { border-bottom: none; }
+</style>
