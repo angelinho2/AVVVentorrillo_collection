@@ -1,4 +1,5 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -7,21 +8,17 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# Importar modelos para que Alembic los detecte
-from app.database import Base
-from app.models import Usuario, Equipo, Calle, Vivienda, Visita, Aportacion  # noqa: F401
-
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+# Sin importar los modelos: las migraciones usan SQL puro (op.execute).
+# Esto evita que SQLAlchemy intente gestionar los tipos Enum de forma autónoma.
+target_metadata = None
 
 
-def get_url():
-    """Obtener la URL de la BD desde la variable de entorno (prioridad) o alembic.ini."""
-    import os
+def get_url() -> str:
     return os.environ.get("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
 
 
