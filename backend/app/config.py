@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     secret_key: str
     admin_default_password: str = "admin1234"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 12  # 12 horas
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7 días
 
     class Config:
         env_file = ".env"

@@ -49,12 +49,16 @@ async def editar_usuario(
     usuario_id: int,
     data: UsuarioPatch,
     db: AsyncSession = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    current_admin: Usuario = Depends(get_current_admin),
 ):
     result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
     usuario = result.scalar_one_or_none()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Protección: un admin no puede desactivarse a sí mismo
+    if usuario_id == current_admin.id and data.activo is False:
+        raise HTTPException(status_code=400, detail="No puedes desactivar tu propia cuenta")
 
     update_data = data.model_dump(exclude_none=True)
     if "password" in update_data:

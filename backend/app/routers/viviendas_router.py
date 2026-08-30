@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from typing import Optional
 
 from app.database import get_db
@@ -20,7 +21,7 @@ async def buscar_viviendas(
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_user),
 ):
-    q = select(Vivienda)
+    q = select(Vivienda).options(selectinload(Vivienda.calle))
     if calle_id:
         q = q.where(Vivienda.calle_id == calle_id)
     if portal:
@@ -41,7 +42,9 @@ async def crear_vivienda(
 ):
     # Comprobar si ya existe
     existing = await db.execute(
-        select(Vivienda).where(
+        select(Vivienda)
+        .options(selectinload(Vivienda.calle))
+        .where(
             Vivienda.calle_id == data.calle_id,
             Vivienda.portal == data.portal,
             Vivienda.piso == data.piso,

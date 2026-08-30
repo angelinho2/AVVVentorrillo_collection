@@ -16,14 +16,26 @@
       <span class="nav-icon">⚙️</span>
       <span>Admin</span>
     </RouterLink>
+    <button class="nav-item nav-logout" @click="cerrarSesion" title="Cerrar sesión">
+      <span class="nav-icon">🚪</span>
+      <span>Salir</span>
+    </button>
   </nav>
 </template>
 
 <script setup>
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
+
+function cerrarSesion() {
+  if (confirm('¿Cerrar sesión?')) {
+    auth.logout()
+    router.push('/login')
+  }
+}
 </script>
 
 <style scoped>
@@ -47,7 +59,12 @@ const route = useRoute()
   font-weight: 500;
   transition: color var(--transition);
   gap: 0.2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 .nav-item:hover, .nav-item.active { color: var(--clr-primary); }
+.nav-logout:hover { color: var(--clr-danger, #e53e3e); }
 .nav-icon { font-size: 1.3rem; }
 </style>
