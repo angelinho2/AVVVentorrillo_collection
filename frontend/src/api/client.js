@@ -15,11 +15,11 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Si el servidor devuelve 401, cerrar sesión
+// Si el servidor devuelve 401 y NO estamos ya en /login, cerrar sesión
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && window.location.pathname !== '/login') {
       const auth = useAuthStore()
       auth.logout()
       window.location.href = '/login'

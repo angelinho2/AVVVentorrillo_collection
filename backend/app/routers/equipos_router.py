@@ -1,4 +1,8 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -6,16 +10,31 @@ from app.database import get_db
 from app.models import Usuario, Equipo
 from app.schemas import EquipoCreate, EquipoPatch, EquipoOut
 from app.auth import get_current_admin, get_current_user
+from app.config import settings
 
 router = APIRouter()
 
+# Esquema opcional: no lanza 401 automáticamente si no hay token
+oauth2_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 @router.get("", response_model=list[EquipoOut])
 async def listar_equipos(
     solo_activos: bool = False,
     db: AsyncSession = Depends(get_db),
-    _: Usuario = Depends(get_current_user),
+    token: Optional[str] = Depends(oauth2_optional),
 ):
+    """Listar equipos.
+    - solo_activos=true: público (usado en la pantalla de login)
+    - solo_activos=false: requiere autenticación (panel admin)
+    """
+    if not solo_activos:
+        if not token:
+            raise HTTPException(status_code=401, detail="No autenticado")
+        try:
+            jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Token inválido")
+
     q = select(Equipo)
     if solo_activos:
         q = q.where(Equipo.activo == True)
