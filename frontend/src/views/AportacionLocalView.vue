@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <h1 style="margin-bottom:1.2rem">Aportación en el local</h1>
+    <PageHeader title="Aportación en el local" back="/" back-label="Registro" />
 
     <div class="card stack">
       <!-- Buscar por vivienda o nombre libre -->
@@ -61,6 +61,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import PageHeader from '../components/PageHeader.vue'
 import BuscadorCalle from '../components/BuscadorCalle.vue'
 import SelectorVivienda from '../components/SelectorVivienda.vue'
 import api from '../api/client.js'

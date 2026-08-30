@@ -1,11 +1,10 @@
 <template>
   <div class="page">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-      <h1>Mi día</h1>
-      <span class="badge badge-success" v-if="totalDia > 0">
-        {{ formatEur(totalDia) }}
-      </span>
-    </div>
+    <PageHeader title="Mi día" back="/" back-label="Registro">
+      <template #right>
+        <span class="badge badge-success" v-if="totalDia > 0">{{ formatEur(totalDia) }}</span>
+      </template>
+    </PageHeader>
 
     <div v-if="cargando" style="display:flex;justify-content:center;padding:2rem">
       <div class="spinner"></div>
@@ -82,6 +81,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import PageHeader from '../components/PageHeader.vue'
 import api from '../api/client.js'
 import { useAuthStore } from '../stores/auth.js'
 

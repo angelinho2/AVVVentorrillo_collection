@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <h1 style="margin-bottom:1.2rem">Panel Admin</h1>
+    <PageHeader title="Panel Admin" back="/" back-label="Registro" />
 
     <!-- Pestañas -->
     <div class="tab-bar">
@@ -176,6 +176,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import PageHeader from '../components/PageHeader.vue'
 import api from '../api/client.js'
 import { useAuthStore } from '../stores/auth.js'
 
