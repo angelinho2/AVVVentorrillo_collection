@@ -22,16 +22,26 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Credenciales incorrectas",
         )
 
-    # Verificar que el equipo existe y está activo
-    eq_result = await db.execute(
-        select(Equipo).where(Equipo.id == data.equipo_id, Equipo.activo == True)
-    )
-    equipo = eq_result.scalar_one_or_none()
-    if not equipo:
-        raise HTTPException(status_code=400, detail="Equipo no válido")
+    equipo_id = data.equipo_id
 
-    token = create_access_token({"sub": str(user.id), "equipo_id": data.equipo_id})
-    return TokenOut(access_token=token, usuario=UsuarioOut.model_validate(user), equipo_id=data.equipo_id)
+    if equipo_id is not None:
+        # Verificar que el equipo existe y está activo
+        eq_result = await db.execute(
+            select(Equipo).where(Equipo.id == equipo_id, Equipo.activo == True)
+        )
+        equipo = eq_result.scalar_one_or_none()
+        if not equipo:
+            raise HTTPException(status_code=400, detail="Equipo no válido")
+    elif not user.es_admin:
+        # Los cobradores no admins DEBEN seleccionar equipo
+        raise HTTPException(status_code=400, detail="Debes seleccionar un equipo")
+
+    token = create_access_token({"sub": str(user.id), "equipo_id": equipo_id})
+    return TokenOut(
+        access_token=token,
+        usuario=UsuarioOut.model_validate(user),
+        equipo_id=equipo_id,
+    )
 
 
 @router.post("/cambiar-equipo", response_model=TokenOut)

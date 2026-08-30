@@ -50,7 +50,7 @@ class EquipoOut(EquipoBase):
 class LoginRequest(BaseModel):
     nombre_usuario: str
     password: str
-    equipo_id: int
+    equipo_id: Optional[int] = None  # Opcional para admins sin equipo asignado
 
 class CambiarEquipoRequest(BaseModel):
     equipo_id: int
@@ -59,7 +59,7 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     usuario: UsuarioOut
-    equipo_id: int
+    equipo_id: Optional[int] = None
 
 
 # ── Calles ───────────────────────────────────────────────────────────────────

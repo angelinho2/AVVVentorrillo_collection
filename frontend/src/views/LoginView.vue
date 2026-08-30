@@ -60,10 +60,14 @@ onMounted(async () => {
 
 async function onSubmit() {
   error.value = ''
-  if (!form.value.equipo_id) { error.value = 'Selecciona un equipo'; return }
+  // Los cobradores necesitan equipo; el admin puede omitirlo si no hay equipos aún
+  if (!form.value.equipo_id && equipos.value.length > 0) {
+    error.value = 'Selecciona un equipo'
+    return
+  }
   cargando.value = true
   try {
-    await auth.login(form.value.usuario, form.value.password, Number(form.value.equipo_id))
+    await auth.login(form.value.usuario, form.value.password, form.value.equipo_id ? Number(form.value.equipo_id) : null)
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.detail || 'Error al iniciar sesión'
