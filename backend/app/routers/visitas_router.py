@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from jose import jwt
 
 from app.database import get_db
@@ -50,11 +51,14 @@ async def registrar_visita(
         db.add(aportacion)
 
     await db.commit()
-    await db.refresh(visita)
-    # Cargar relación aportacion si existe
-    if visita.aportacion:
-        await db.refresh(visita, ["aportacion"])
-    return visita
+    
+    # Cargar la visita junto con la relación aportacion usando selectinload
+    result = await db.execute(
+        select(Visita)
+        .options(selectinload(Visita.aportacion))
+        .where(Visita.id == visita.id)
+    )
+    return result.scalar_one()
 
 
 @router.patch("/{visita_id}", response_model=VisitaOut)
@@ -64,7 +68,11 @@ async def editar_visita(
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_user),
 ):
-    result = await db.execute(select(Visita).where(Visita.id == visita_id))
+    result = await db.execute(
+        select(Visita)
+        .options(selectinload(Visita.aportacion))
+        .where(Visita.id == visita_id)
+    )
     visita = result.scalar_one_or_none()
     if not visita:
         raise HTTPException(status_code=404, detail="Visita no encontrada")
