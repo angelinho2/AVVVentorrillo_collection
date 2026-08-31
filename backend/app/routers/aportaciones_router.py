@@ -42,6 +42,8 @@ async def crear_aportacion(
 async def listar_aportaciones(
     fecha: Optional[date] = None,
     equipo_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_user),
 ):
@@ -50,7 +52,7 @@ async def listar_aportaciones(
         q = q.where(Aportacion.fecha == fecha)
     if equipo_id:
         q = q.where(Aportacion.equipo_id == equipo_id)
-    q = q.order_by(Aportacion.creado_en.desc())
+    q = q.order_by(Aportacion.creado_en.desc()).offset(offset).limit(limit)
     result = await db.execute(q)
     return result.scalars().all()
 

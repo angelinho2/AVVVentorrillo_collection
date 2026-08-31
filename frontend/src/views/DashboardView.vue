@@ -166,6 +166,41 @@
 
     <div v-if="toast" class="toast" :class="{ error: toastError }">{{ toast }}</div>
 
+    <!-- ── HISTORIAL DIARIO GLOBAL ─────────────────────────── -->
+    <div v-if="tab === 'historial'" class="stack" style="margin-top:1rem">
+      <div class="card">
+        <div class="row" style="margin-bottom:1rem">
+          <div>
+            <label for="fecha-hist">Día a visualizar</label>
+            <input id="fecha-hist" class="input" type="date" v-model="fechaHistorial" @change="cargarHistorial(true)" />
+          </div>
+        </div>
+
+        <div v-if="historialAportaciones.length === 0 && !historialCargando" style="text-align:center;color:var(--clr-muted);padding:2rem 0">
+          No hay registros para este día
+        </div>
+        
+        <div v-else class="stack">
+          <div v-for="a in historialAportaciones" :key="a.id" class="card" style="padding:0.75rem;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div v-if="a.vivienda" style="font-weight:600">{{ a.vivienda.calle.nombre }} {{ a.vivienda.portal }} <span v-if="a.vivienda.piso">{{ a.vivienda.piso }}</span> <span v-if="a.vivienda.puerta">{{ a.vivienda.puerta }}</span></div>
+              <div v-else-if="a.nombre_persona" style="font-weight:600">{{ a.nombre_persona }} (Local)</div>
+              
+              <div style="font-size:0.8rem;color:var(--clr-muted);display:flex;gap:0.4rem;align-items:center;margin-top:0.2rem">
+                <span class="badge" style="background:var(--clr-surface2)">{{ (equipos.find(e => e.id === a.equipo_id) || {}).nombre || 'Equipo ' + a.equipo_id }}</span>
+                <span>• {{ formatEur(a.importe) }} ({{ a.forma_pago }})</span>
+              </div>
+            </div>
+          </div>
+          
+          <button v-if="historialTieneMas" class="btn btn-ghost" style="margin-top:1rem" @click="cargarHistorial(false)">
+            <span v-if="historialCargando" class="spinner" style="width:16px;height:16px"></span>
+            <span v-else>Cargar más (50)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <button class="btn btn-ghost btn-sm" style="color:var(--clr-danger);margin-top:1.5rem"
             @click="auth.logout(); router.push('/login')">
       🚪 Cerrar sesión
@@ -185,6 +220,7 @@ const router = useRouter()
 
 const tabs = [
   { key: 'reporte', label: '📊 Reportes' },
+  { key: 'historial', label: '📖 Historial' },
   { key: 'equipos', label: '👥 Equipos' },
   { key: 'usuarios', label: '🙋 Cobradores' },
   { key: 'calles',  label: '🛣️ Calles' },
@@ -205,12 +241,18 @@ const nuevoUser = ref({ nombre_usuario: '', password: '', es_admin: false })
 const toast = ref('')
 const toastError = ref(false)
 
+const fechaHistorial = ref(new Date().toISOString().slice(0, 10))
+const historialAportaciones = ref([])
+const historialCargando = ref(false)
+const historialOffset = ref(0)
+const historialTieneMas = ref(true)
+
 function formatEur(n) {
   return Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
 }
 
 onMounted(async () => {
-  await Promise.all([cargarEquipos(), cargarUsuarios(), cargarCalles()])
+  await Promise.all([cargarEquipos(), cargarUsuarios(), cargarCalles(), cargarHistorial(true)])
   await cargarReporte()
   await cargarDashboard()
 })
@@ -267,6 +309,33 @@ async function crearCalle() {
     mostrarToast('Calle creada')
     cargarCalles()
   } catch (e) { mostrarToast(e.response?.data?.detail || 'Error', true) }
+}
+
+async function cargarHistorial(reset = true) {
+  if (reset) {
+    historialOffset.value = 0
+    historialAportaciones.value = []
+    historialTieneMas.value = true
+  }
+  if (!historialTieneMas.value) return
+  
+  historialCargando.value = true
+  try {
+    const res = await api.get('/aportaciones', {
+      params: {
+        fecha: fechaHistorial.value,
+        limit: 50,
+        offset: historialOffset.value
+      }
+    })
+    if (res.data.length < 50) historialTieneMas.value = false
+    historialAportaciones.value.push(...res.data)
+    historialOffset.value += 50
+  } catch (e) {
+    mostrarToast(e.response?.data?.detail || 'Error al cargar historial', true)
+  } finally {
+    historialCargando.value = false
+  }
 }
 
 async function exportarExcel() {
