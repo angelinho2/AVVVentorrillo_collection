@@ -65,7 +65,7 @@
           <input id="edit-obs" class="input" type="text" v-model="editForm.observaciones" />
         </div>
         
-        <!-- Cambiar dirección -->
+        <!-- Cambiar dirección o nombre -->
         <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--clr-border)" v-if="editando.vivienda">
           <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
             <input type="checkbox" v-model="cambiarDireccion" />
@@ -82,6 +82,11 @@
               <SelectorVivienda v-model="vivienda" />
             </div>
           </div>
+        </div>
+
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--clr-border)" v-else-if="editando.nombre_persona">
+          <label for="edit-nombre">Nombre de la persona</label>
+          <input id="edit-nombre" class="input" type="text" v-model="editForm.nombre_persona" />
         </div>
         
         <div class="row" style="margin-top:1rem">
@@ -153,6 +158,9 @@ async function cargar() {
 function editar(a) {
   editando.value = a
   editForm.value = { importe: a.importe, forma_pago: a.forma_pago, observaciones: a.observaciones || '' }
+  if (a.nombre_persona) {
+    editForm.value.nombre_persona = a.nombre_persona
+  }
   cambiarDireccion.value = false
   calle.value = null
   vivienda.value = { portal: '', piso: '', puerta: '' }

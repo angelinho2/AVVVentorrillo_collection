@@ -122,6 +122,7 @@ class AportacionPatch(BaseModel):
     observaciones: Optional[str] = None
     equipo_id: Optional[int] = None
     vivienda_id: Optional[int] = None
+    nombre_persona: Optional[str] = None
 
 class AportacionOut(AportacionBase):
     model_config = ConfigDict(from_attributes=True)

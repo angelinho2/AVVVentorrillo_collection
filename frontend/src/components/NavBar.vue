@@ -16,10 +16,6 @@
       <span class="nav-icon">⚙️</span>
       <span>Admin</span>
     </RouterLink>
-    <button class="nav-item nav-logout" @click="cerrarSesion" title="Cerrar sesión">
-      <span class="nav-icon">🚪</span>
-      <span>Salir</span>
-    </button>
   </nav>
 </template>
 
