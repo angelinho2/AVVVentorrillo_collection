@@ -27,7 +27,6 @@ async def crear_aportacion(
     aportacion = Aportacion(
         **data.model_dump(),
         registrado_por=current_user.id,
-        anio_campania=data.fecha.year if data.anio_campania is None else data.anio_campania,
     )
     db.add(aportacion)
     await db.commit()
