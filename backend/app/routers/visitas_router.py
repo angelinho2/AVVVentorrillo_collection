@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from jose import jwt
 
 from app.database import get_db
-from app.models import Usuario, Visita, Aportacion, OrigenAportacion
+from app.models import Usuario, Visita, Aportacion, OrigenAportacion, Vivienda
 from app.schemas import VisitaCreate, VisitaPatch, VisitaOut
 from app.auth import get_current_user
 from app.config import settings
@@ -55,7 +55,9 @@ async def registrar_visita(
     # Cargar la visita junto con la relación aportacion usando selectinload
     result = await db.execute(
         select(Visita)
-        .options(selectinload(Visita.aportacion))
+        .options(
+            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle)
+        )
         .where(Visita.id == visita.id)
     )
     return result.scalar_one()
@@ -70,7 +72,9 @@ async def editar_visita(
 ):
     result = await db.execute(
         select(Visita)
-        .options(selectinload(Visita.aportacion))
+        .options(
+            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle)
+        )
         .where(Visita.id == visita_id)
     )
     visita = result.scalar_one_or_none()

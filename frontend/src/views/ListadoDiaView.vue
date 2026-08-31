@@ -23,6 +23,14 @@
                 {{ a.forma_pago === 'bizum' ? '📱' : '💵' }} {{ a.forma_pago }}
               </span>
             </div>
+            <div v-if="a.vivienda" style="font-weight:500;margin-top:0.3rem">
+              {{ a.vivienda.calle?.nombre }} {{ a.vivienda.portal }}
+              <span v-if="a.vivienda.piso">{{ a.vivienda.piso }}</span>
+              <span v-if="a.vivienda.puerta">{{ a.vivienda.puerta }}</span>
+            </div>
+            <div v-else-if="a.nombre_persona" style="font-weight:500;margin-top:0.3rem">
+              👤 {{ a.nombre_persona }}
+            </div>
             <div style="font-size:0.8rem;color:var(--clr-muted);margin-top:0.2rem">
               {{ a.creado_en ? new Date(a.creado_en).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'}) : '' }}
               · {{ a.origen === 'local' ? 'Local' : 'Puerta' }}

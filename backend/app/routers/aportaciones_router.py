@@ -4,9 +4,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import Usuario, Aportacion
+from app.models import Usuario, Aportacion, Vivienda
 from app.schemas import AportacionCreate, AportacionPatch, AportacionOut
 from app.auth import get_current_user
 
@@ -30,8 +31,12 @@ async def crear_aportacion(
     )
     db.add(aportacion)
     await db.commit()
-    await db.refresh(aportacion)
-    return aportacion
+    result = await db.execute(
+        select(Aportacion)
+        .options(selectinload(Aportacion.vivienda).selectinload(Vivienda.calle))
+        .where(Aportacion.id == aportacion.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("", response_model=list[AportacionOut])
@@ -41,7 +46,7 @@ async def listar_aportaciones(
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_user),
 ):
-    q = select(Aportacion)
+    q = select(Aportacion).options(selectinload(Aportacion.vivienda).selectinload(Vivienda.calle))
     if fecha:
         q = q.where(Aportacion.fecha == fecha)
     if equipo_id:
@@ -67,7 +72,13 @@ async def editar_aportacion(
         setattr(aportacion, field, value)
 
     await db.commit()
-    await db.refresh(aportacion)
+    
+    result = await db.execute(
+        select(Aportacion)
+        .options(selectinload(Aportacion.vivienda).selectinload(Vivienda.calle))
+        .where(Aportacion.id == aportacion_id)
+    )
+    aportacion = result.scalar_one()
     return aportacion
 
 

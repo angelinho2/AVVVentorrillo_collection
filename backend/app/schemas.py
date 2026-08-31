@@ -128,6 +128,7 @@ class AportacionOut(AportacionBase):
     visita_id: Optional[int] = None
     registrado_por: int
     creado_en: datetime
+    vivienda: Optional[ViviendaOut] = None
 
 
 # ── Visitas ───────────────────────────────────────────────────────────────────
