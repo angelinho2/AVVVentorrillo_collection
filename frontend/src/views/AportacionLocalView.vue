@@ -3,6 +3,12 @@
     <PageHeader title="Aportación en el local" back="/" back-label="Registro" />
 
     <div class="card stack">
+      <!-- Fecha de registro -->
+      <div>
+        <label for="fecha-local" class="section-title" style="margin-bottom:0.2rem">Fecha del registro</label>
+        <input id="fecha-local" class="input" type="date" v-model="fechaRegistro" style="margin-bottom: 1rem" />
+      </div>
+
       <!-- Buscar por vivienda o nombre libre -->
       <div>
         <p class="section-title">Origen</p>
@@ -69,6 +75,7 @@ import { useAuthStore } from '../stores/auth.js'
 
 const auth = useAuthStore()
 const modo = ref('vivienda')
+const fechaRegistro = ref(new Date().toISOString().slice(0, 10))
 const calle = ref(null)
 const vivienda = ref({ portal: '', piso: '', puerta: '' })
 const nombrePersona = ref('')
@@ -88,14 +95,13 @@ const puedeGuardar = computed(() => {
 async function guardar() {
   guardando.value = true
   try {
-    const hoy = new Date().toISOString().slice(0, 10)
     const body = {
       origen: 'local',
       equipo_id: auth.equipoId,
       importe: Number(importeStr.value),
       forma_pago: formaPago.value,
-      fecha: hoy,
-      anio_campania: new Date().getFullYear(),
+      fecha: fechaRegistro.value,
+      anio_campania: Number(fechaRegistro.value.slice(0, 4)),
       observaciones: observaciones.value || null,
     }
 

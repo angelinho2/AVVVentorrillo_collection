@@ -11,6 +11,12 @@
       </div>
     </div>
 
+    <!-- Fecha de registro -->
+    <div class="card stack" style="margin-bottom:0.75rem">
+      <label for="fecha-visita" class="section-title" style="margin-bottom:0.2rem">Fecha del registro</label>
+      <input id="fecha-visita" class="input" type="date" v-model="fechaRegistro" />
+    </div>
+
     <!-- 1. Calle -->
     <div class="card stack" style="margin-bottom:0.75rem">
       <p class="section-title">1. Calle</p>
@@ -130,6 +136,7 @@ const RESULTADOS = [
 ]
 
 const calle = ref(null)
+const fechaRegistro = ref(new Date().toISOString().slice(0, 10))
 const vivienda = ref({ portal: '', piso: '', puerta: '' })
 const viviendaId = ref(null)
 const resultado = ref('')
@@ -188,11 +195,10 @@ async function guardar() {
       vId = res.data.id
     }
 
-    const hoy = new Date().toISOString().slice(0, 10)
     const body = {
       vivienda_id: vId,
       equipo_id: auth.equipoId,
-      fecha: hoy,
+      fecha: fechaRegistro.value,
       resultado: resultado.value,
       observaciones: observaciones.value || null,
     }
