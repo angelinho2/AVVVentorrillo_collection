@@ -191,12 +191,82 @@
                 <span>• {{ formatEur(a.importe) }} ({{ a.forma_pago }})</span>
               </div>
             </div>
+            <div style="display:flex;gap:0.4rem">
+              <button class="btn btn-ghost btn-sm" @click="histEditar(a)">✏️</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--clr-danger)" @click="histBorrandoId = a.id">🗑️</button>
+            </div>
           </div>
           
           <button v-if="historialTieneMas" class="btn btn-ghost" style="margin-top:1rem" @click="cargarHistorial(false)">
             <span v-if="historialCargando" class="spinner" style="width:16px;height:16px"></span>
             <span v-else>Cargar más (50)</span>
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal edición Historial -->
+    <div v-if="histEditando" class="modal-overlay" @click.self="histEditando = null">
+      <div class="modal-box stack">
+        <h2>Editar aportación</h2>
+        <div>
+          <label for="edit-importe">Importe (€)</label>
+          <input id="edit-importe" class="input" type="number" step="0.01" v-model="histEditForm.importe" />
+        </div>
+        <div>
+          <label for="edit-pago">Forma de pago</label>
+          <select id="edit-pago" class="select" v-model="histEditForm.forma_pago">
+            <option value="efectivo">💵 Efectivo</option>
+            <option value="bizum">📱 Bizum</option>
+          </select>
+        </div>
+        <div>
+          <label for="edit-obs">Observaciones</label>
+          <input id="edit-obs" class="input" type="text" v-model="histEditForm.observaciones" />
+        </div>
+        
+        <!-- Cambiar dirección o nombre -->
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--clr-border)" v-if="histEditando.vivienda">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+            <input type="checkbox" v-model="histCambiarDireccion" />
+            <span>Cambiar dirección</span>
+          </label>
+          
+          <div v-if="histCambiarDireccion" style="margin-top:0.5rem" class="stack">
+            <div>
+              <label>1. Calle</label>
+              <BuscadorCalle v-model="histCalle" />
+            </div>
+            <div v-if="histCalle">
+              <label>2. Vivienda</label>
+              <SelectorVivienda v-model="histVivienda" />
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--clr-border)" v-else-if="histEditando.nombre_persona">
+          <label for="edit-nombre">Nombre de la persona</label>
+          <input id="edit-nombre" class="input" type="text" v-model="histEditForm.nombre_persona" />
+        </div>
+        
+        <div class="row" style="margin-top:1rem">
+          <button class="btn btn-ghost" @click="histEditando = null">Cancelar</button>
+          <button class="btn btn-primary" @click="histGuardarEdicion">
+            <span v-if="histGuardandoEdicion" class="spinner" style="width:16px;height:16px"></span>
+            <span v-else>Guardar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Borrar Historial -->
+    <div v-if="histBorrandoId" class="modal-overlay" @click.self="histBorrandoId = null">
+      <div class="modal-box stack">
+        <h2>¿Borrar aportación?</h2>
+        <p style="color:var(--clr-muted)">Esta acción no se puede deshacer.</p>
+        <div class="row">
+          <button class="btn btn-ghost" @click="histBorrandoId = null">Cancelar</button>
+          <button class="btn btn-danger" @click="histBorrar">Borrar</button>
         </div>
       </div>
     </div>
@@ -212,6 +282,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
+import BuscadorCalle from '../components/BuscadorCalle.vue'
+import SelectorVivienda from '../components/SelectorVivienda.vue'
 import api from '../api/client.js'
 import { useAuthStore } from '../stores/auth.js'
 
@@ -246,6 +318,14 @@ const historialAportaciones = ref([])
 const historialCargando = ref(false)
 const historialOffset = ref(0)
 const historialTieneMas = ref(true)
+
+const histEditando = ref(null)
+const histEditForm = ref({})
+const histGuardandoEdicion = ref(false)
+const histCambiarDireccion = ref(false)
+const histCalle = ref(null)
+const histVivienda = ref({ portal: '', piso: '', puerta: '' })
+const histBorrandoId = ref(null)
 
 function formatEur(n) {
   return Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
@@ -335,6 +415,63 @@ async function cargarHistorial(reset = true) {
     mostrarToast(e.response?.data?.detail || 'Error al cargar historial', true)
   } finally {
     historialCargando.value = false
+  }
+}
+
+function histEditar(a) {
+  histEditando.value = a
+  histEditForm.value = { importe: a.importe, forma_pago: a.forma_pago, observaciones: a.observaciones || '' }
+  if (a.nombre_persona) {
+    histEditForm.value.nombre_persona = a.nombre_persona
+  }
+  histCambiarDireccion.value = false
+  histCalle.value = null
+  histVivienda.value = { portal: '', piso: '', puerta: '' }
+}
+
+async function histGuardarEdicion() {
+  histGuardandoEdicion.value = true
+  try {
+    let body = { ...histEditForm.value }
+    if (histCambiarDireccion.value && histCalle.value && histVivienda.value.portal) {
+      let vId = null
+      try {
+        const resBusqueda = await api.get('/viviendas', {
+          params: { calle_id: histCalle.value.id, portal: histVivienda.value.portal, piso: histVivienda.value.piso || undefined, puerta: histVivienda.value.puerta || undefined }
+        })
+        if (resBusqueda.data.length > 0) vId = resBusqueda.data[0].id
+      } catch { /* ignorar */ }
+      
+      if (!vId) {
+        const resCrear = await api.post('/viviendas', {
+          calle_id: histCalle.value.id, portal: histVivienda.value.portal, piso: histVivienda.value.piso || null, puerta: histVivienda.value.puerta || null
+        })
+        vId = resCrear.data.id
+      }
+      body.vivienda_id = vId
+    }
+
+    await api.patch(`/aportaciones/${histEditando.value.id}`, body)
+    histEditando.value = null
+    mostrarToast('Aportación guardada')
+    // Recargar solo ese item en local o refrescar la lista completa (optamos por recargar la lista)
+    cargarHistorial(true)
+  } catch (e) {
+    mostrarToast(e.response?.data?.detail || 'Error al guardar', true)
+  } finally {
+    histGuardandoEdicion.value = false
+  }
+}
+
+async function histBorrar() {
+  if (!histBorrandoId.value) return
+  try {
+    await api.delete(`/aportaciones/${histBorrandoId.value}`)
+    mostrarToast('Aportación eliminada')
+    histBorrandoId.value = null
+    cargarHistorial(true)
+  } catch (e) {
+    mostrarToast(e.response?.data?.detail || 'Error al eliminar', true)
   }
 }
 
