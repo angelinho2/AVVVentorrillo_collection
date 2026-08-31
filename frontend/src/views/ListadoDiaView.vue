@@ -64,9 +64,32 @@
           <label for="edit-obs">Observaciones</label>
           <input id="edit-obs" class="input" type="text" v-model="editForm.observaciones" />
         </div>
-        <div class="row">
+        
+        <!-- Cambiar dirección -->
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--clr-border)" v-if="editando.vivienda">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+            <input type="checkbox" v-model="cambiarDireccion" />
+            <span>Cambiar dirección</span>
+          </label>
+          
+          <div v-if="cambiarDireccion" style="margin-top:0.5rem" class="stack">
+            <div>
+              <label>1. Calle</label>
+              <BuscadorCalle v-model="calle" />
+            </div>
+            <div v-if="calle">
+              <label>2. Vivienda</label>
+              <SelectorVivienda v-model="vivienda" />
+            </div>
+          </div>
+        </div>
+        
+        <div class="row" style="margin-top:1rem">
           <button class="btn btn-ghost" @click="editando = null">Cancelar</button>
-          <button class="btn btn-primary" @click="guardarEdicion">Guardar</button>
+          <button class="btn btn-primary" @click="guardarEdicion">
+            <span v-if="guardandoEdicion" class="spinner" style="width:16px;height:16px"></span>
+            <span v-else>Guardar</span>
+          </button>
         </div>
       </div>
     </div>
@@ -90,6 +113,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
+import BuscadorCalle from '../components/BuscadorCalle.vue'
+import SelectorVivienda from '../components/SelectorVivienda.vue'
 import api from '../api/client.js'
 import { useAuthStore } from '../stores/auth.js'
 
@@ -98,6 +123,10 @@ const aportaciones = ref([])
 const cargando = ref(false)
 const editando = ref(null)
 const editForm = ref({})
+const guardandoEdicion = ref(false)
+const cambiarDireccion = ref(false)
+const calle = ref(null)
+const vivienda = ref({ portal: '', piso: '', puerta: '' })
 const borrandoId = ref(null)
 const toast = ref('')
 const toastError = ref(false)
@@ -124,16 +153,52 @@ async function cargar() {
 function editar(a) {
   editando.value = a
   editForm.value = { importe: a.importe, forma_pago: a.forma_pago, observaciones: a.observaciones || '' }
+  cambiarDireccion.value = false
+  calle.value = null
+  vivienda.value = { portal: '', piso: '', puerta: '' }
 }
 
 async function guardarEdicion() {
+  guardandoEdicion.value = true
   try {
-    await api.patch(`/aportaciones/${editando.value.id}`, editForm.value)
+    let body = { ...editForm.value }
+    
+    // Si quiere cambiar de dirección y es válida
+    if (cambiarDireccion.value && calle.value && vivienda.value.portal) {
+      // 1. Obtener o crear vivienda
+      let vId = null
+      try {
+        const resBusqueda = await api.get('/viviendas', {
+          params: {
+            calle_id: calle.value.id,
+            portal: vivienda.value.portal,
+            piso: vivienda.value.piso || undefined,
+            puerta: vivienda.value.puerta || undefined,
+          }
+        })
+        if (resBusqueda.data.length > 0) vId = resBusqueda.data[0].id
+      } catch { /* ignorar */ }
+      
+      if (!vId) {
+        const resCrear = await api.post('/viviendas', {
+          calle_id: calle.value.id,
+          portal: vivienda.value.portal,
+          piso: vivienda.value.piso || null,
+          puerta: vivienda.value.puerta || null,
+        })
+        vId = resCrear.data.id
+      }
+      body.vivienda_id = vId
+    }
+
+    await api.patch(`/aportaciones/${editando.value.id}`, body)
     editando.value = null
     mostrarToast('Guardado')
     cargar()
   } catch (e) {
-    mostrarToast(e.response?.data?.detail || 'Error', true)
+    mostrarToast(e.response?.data?.detail || 'Error al guardar', true)
+  } finally {
+    guardandoEdicion.value = false
   }
 }
 

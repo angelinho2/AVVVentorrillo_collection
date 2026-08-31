@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import Usuario, Aportacion, Vivienda
+from app.models import Usuario, Aportacion, Vivienda, Visita
 from app.schemas import AportacionCreate, AportacionPatch, AportacionOut
 from app.auth import get_current_user
 
@@ -67,6 +67,13 @@ async def editar_aportacion(
     aportacion = result.scalar_one_or_none()
     if not aportacion:
         raise HTTPException(status_code=404, detail="Aportación no encontrada")
+
+    # Si se cambió la vivienda y está asociada a una visita, actualizar la visita también
+    if "vivienda_id" in data.model_dump(exclude_none=True) and aportacion.visita_id:
+        result_visita = await db.execute(select(Visita).where(Visita.id == aportacion.visita_id))
+        visita = result_visita.scalar_one_or_none()
+        if visita:
+            visita.vivienda_id = data.vivienda_id
 
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(aportacion, field, value)
