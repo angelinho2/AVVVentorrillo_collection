@@ -11,10 +11,15 @@
           <input id="usuario" class="input" type="text" v-model="form.usuario"
                  placeholder="nombre_usuario" autocomplete="username" required />
         </div>
-        <div>
+        <div style="position:relative; text-align:left">
           <label for="password">Contraseña</label>
-          <input id="password" class="input" type="password" v-model="form.password"
-                 placeholder="••••••••" autocomplete="current-password" required />
+          <div style="position:relative">
+            <input id="password" class="input" :type="mostrarPassword ? 'text' : 'password'" v-model="form.password"
+                   placeholder="••••••••" autocomplete="current-password" required style="padding-right: 2.5rem;" />
+            <button type="button" @click="mostrarPassword = !mostrarPassword" style="position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.2rem; color:var(--clr-muted)">
+              {{ mostrarPassword ? '🙈' : '👁️' }}
+            </button>
+          </div>
         </div>
         <div>
           <label for="equipo">Equipo de cobro</label>
@@ -47,6 +52,7 @@ const equipos = ref([])
 const cargando = ref(false)
 const error = ref('')
 const form = ref({ usuario: '', password: '', equipo_id: '' })
+const mostrarPassword = ref(false)
 
 onMounted(async () => {
   try {
