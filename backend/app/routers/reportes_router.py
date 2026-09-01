@@ -108,7 +108,7 @@ async def exportar_excel(
     )
     if anio:
         q = q.where(Aportacion.anio_campania == anio)
-    q = q.order_by(Aportacion.fecha, Aportacion.id)
+    q = q.order_by(Aportacion.creado_en.asc())
 
     result = await db.execute(q)
     rows = result.all()
