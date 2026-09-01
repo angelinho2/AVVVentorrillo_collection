@@ -476,12 +476,17 @@ async function histBorrar() {
 }
 
 async function exportarExcel() {
-  const url = `/api/reportes/exportar-excel${anioDash.value ? '?anio=' + anioDash.value : ''}`
-  const res = await api.get(url, { responseType: 'blob' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(res.data)
-  a.download = `aportaciones_${anioDash.value || 'todos'}.xlsx`
-  a.click()
+  try {
+    const url = `/reportes/exportar-excel${anioDash.value ? '?anio=' + anioDash.value : ''}`
+    const res = await api.get(url, { responseType: 'blob' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(res.data)
+    a.download = `aportaciones_${anioDash.value || 'todos'}.xlsx`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (e) {
+    mostrarToast('Error al descargar Excel', true)
+  }
 }
 
 function mostrarToast(msg, esError = false) {
