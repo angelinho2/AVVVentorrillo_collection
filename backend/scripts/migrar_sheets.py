@@ -238,6 +238,19 @@ async def main():
 
                 # ── Calle ───────────────────────────────────────────────────
                 calle_norm = calle_raw.strip()
+                
+                # Correcciones de nombres de calle
+                if calle_norm == "Peñamaría de Llano":
+                    calle_norm = "Alcalde Peñamaría de Llano"
+                elif calle_norm == "Teixeira de Pascoaei":
+                    calle_norm = "Teixeira de Pascoaes"
+                elif calle_norm == "Jose Eduardo Seijas":
+                    # El usuario pidió que no sea una dirección.
+                    # Lo guardamos en una calle genérica y ponemos su nombre en la puerta.
+                    calle_norm = "Aportaciones Individuales"
+                    puerta = "Jose Eduardo Seijas"
+                    portal = "0"
+                
                 if calle_norm not in calles_cache:
                     res = await session.execute(
                         select(Calle).where(Calle.nombre == calle_norm)
