@@ -71,17 +71,29 @@ async def historico_vivienda(
     _: Usuario = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(
-            Aportacion.anio_campania,
-            func.sum(Aportacion.importe).label("total"),
-            func.count(Aportacion.id).label("num_aportaciones"),
-        )
+        select(Aportacion)
         .where(Aportacion.vivienda_id == vivienda_id)
-        .group_by(Aportacion.anio_campania)
-        .order_by(Aportacion.anio_campania.desc())
+        .order_by(Aportacion.anio_campania.desc(), Aportacion.fecha.desc())
     )
-    rows = result.all()
-    return [
-        HistoricoAnio(anio_campania=r.anio_campania, total=float(r.total), num_aportaciones=r.num_aportaciones)
-        for r in rows
-    ]
+    aportaciones = result.scalars().all()
+    
+    agrupado = {}
+    for ap in aportaciones:
+        anio = ap.anio_campania
+        if anio not in agrupado:
+            agrupado[anio] = {
+                "anio_campania": anio,
+                "total": 0.0,
+                "num_aportaciones": 0,
+                "observaciones": []
+            }
+        agrupado[anio]["total"] += float(ap.importe)
+        agrupado[anio]["num_aportaciones"] += 1
+        
+        if ap.observaciones and str(ap.observaciones).strip():
+            agrupado[anio]["observaciones"].append({
+                "fecha": ap.fecha,
+                "texto": ap.observaciones.strip()
+            })
+            
+    return list(agrupado.values())

@@ -92,10 +92,15 @@ class ViviendaOut(ViviendaBase):
     id: int
     calle: CalleOut
 
+class ObservacionHistorico(BaseModel):
+    fecha: date
+    texto: str
+
 class HistoricoAnio(BaseModel):
     anio_campania: int
     total: float
     num_aportaciones: int
+    observaciones: list[ObservacionHistorico] = []
 
 
 # ── Aportaciones ─────────────────────────────────────────────────────────────

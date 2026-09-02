@@ -24,11 +24,34 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="h in historico" :key="h.anio_campania">
-              <td>{{ h.anio_campania }}</td>
-              <td>{{ h.num_aportaciones }}</td>
-              <td><strong>{{ formatEur(h.total) }}</strong></td>
-            </tr>
+            <template v-for="h in historico" :key="h.anio_campania">
+              <tr>
+                <td>{{ h.anio_campania }}</td>
+                <td>{{ h.num_aportaciones }}</td>
+                <td>
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong>{{ formatEur(h.total) }}</strong>
+                    <button v-if="h.observaciones && h.observaciones.length" 
+                            class="btn btn-ghost btn-sm" 
+                            @click="toggleObservaciones(h.anio_campania)"
+                            style="padding:0.2rem 0.5rem; height:auto; font-size:0.75rem"
+                            title="Ver observaciones">
+                      {{ verObservaciones[h.anio_campania] ? 'Ocultar' : '💬 Notas' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="verObservaciones[h.anio_campania] && h.observaciones && h.observaciones.length">
+                <td colspan="3" style="background:var(--clr-surface2); padding:0.75rem; border-bottom:1px solid var(--clr-border);">
+                  <div style="font-size:0.85rem; color:var(--clr-text)">
+                    <div v-for="(obs, idx) in h.observaciones" :key="idx" :style="idx > 0 ? 'margin-top:0.4rem' : ''">
+                      <span style="color:var(--clr-muted); font-weight:600; margin-right:0.3rem">{{ formatDate(obs.fecha) }}:</span>
+                      <span>{{ obs.texto }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
         <button class="btn btn-ghost btn-full" style="margin-top:1rem" @click="abierto = false">
@@ -48,9 +71,11 @@ const props = defineProps({ viviendaId: { type: Number, default: null } })
 const historico = ref([])
 const abierto = ref(false)
 const cargando = ref(false)
+const verObservaciones = ref({})
 
 watch(() => props.viviendaId, async (id) => {
   historico.value = []
+  verObservaciones.value = {}
   if (!id) return
   cargando.value = true
   try {
@@ -61,7 +86,17 @@ watch(() => props.viviendaId, async (id) => {
   }
 }, { immediate: true })
 
+function toggleObservaciones(anio) {
+  verObservaciones.value[anio] = !verObservaciones.value[anio]
+}
+
 function formatEur(n) {
   return Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 </script>
