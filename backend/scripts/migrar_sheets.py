@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select, text
 
 from app.config import settings
-from app.models import Base, Usuario, Equipo, Calle, Vivienda, Aportacion, OrigenAportacion, FormaPago
+from app.models import Base, Usuario, Equipo, Calle, Vivienda, Aportacion, OrigenAportacion, FormaPago, Visita, ResultadoVisita
 from app.auth import hash_password
 
 # ── Configuración ────────────────────────────────────────────────────────────
@@ -84,23 +84,36 @@ def normalizar_puerta(valor: str) -> str:
     return v
 
 
-def parsear_importe(valor: str) -> Decimal | None:
+def mapear_resultado(valor: str) -> tuple[Decimal | None, str | None, bool]:
     """
-    Intenta convertir el campo Importe a Decimal.
-    Devuelve None si el valor no es monetario (X, No, Lc, etc.)
+    Intenta convertir el campo Importe.
+    Devuelve (importe, resultado_visita, descartar)
     """
-    v = valor.strip().strip('"')
+    v = valor.strip().strip('"').lower()
     if not v:
-        return None
+        return None, None, True
+        
+    if v == "volver" or v == "c":
+        return None, None, True
+        
+    if v == "no":
+        return None, "no_aporta", False
+        
+    if v == "x":
+        return None, "no_abre", False
+        
+    if v in ["lc", "l c", "local"]:
+        return None, "pasara_por_local", False
+        
     # Reemplazar coma decimal por punto
     v = v.replace(",", ".")
     try:
         d = Decimal(v)
         if d <= 0:
-            return None
-        return d
+            return None, None, True
+        return d, "aporta", False
     except InvalidOperation:
-        return None
+        return None, None, False  # Raro, a revisar
 
 
 def corregir_anio(anio_str: str, fecha: datetime) -> int:
@@ -130,7 +143,8 @@ async def main():
     stats = {
         "total": 0,
         "importadas": 0,
-        "descartadas_no_monetario": 0,
+        "visitas_sin_aporte": 0,
+        "descartadas": 0,
         "descartadas_error": 0,
         "calles_creadas": 0,
         "viviendas_creadas": 0,
@@ -189,10 +203,15 @@ async def main():
                 fecha_raw = row.get("FechaPago", "").strip()
                 observaciones = row.get("Observaciones", "").strip()
 
-                # ── Filtrar registros no monetarios ────────────────────────
-                importe = parsear_importe(importe_raw)
-                if importe is None:
-                    stats["descartadas_no_monetario"] += 1
+                # ── Filtrar registros y determinar resultado ────────────────────────
+                importe, resultado, descartar = mapear_resultado(importe_raw)
+                if descartar:
+                    stats["descartadas"] += 1
+                    continue
+                if importe is None and resultado is None:
+                    # Casos raros no mapeados
+                    errores.append({"fila": i, "id": id_original, "motivo": f"Valor de importe no reconocido: {importe_raw}"})
+                    stats["descartadas_error"] += 1
                     continue
 
                 # ── Parsear fecha ───────────────────────────────────────────
@@ -205,6 +224,11 @@ async def main():
 
                 # ── Corregir año ────────────────────────────────────────────
                 anio_campania = corregir_anio(anio_raw, fecha)
+                
+                # Descartar año 2024
+                if anio_campania == 2024:
+                    stats["descartadas"] += 1
+                    continue
 
                 # ── Normalizar puerta ───────────────────────────────────────
                 puerta = normalizar_puerta(puerta_raw)
@@ -255,25 +279,41 @@ async def main():
                     viviendas_cache[viv_key] = viv_obj.id
                 vivienda_id = viviendas_cache[viv_key]
 
-                # ── Aportación ──────────────────────────────────────────────
-                aportacion = Aportacion(
+                # ── Visita y Aportación ───────────────────────────────────────
+                visita = Visita(
                     vivienda_id=vivienda_id,
-                    origen=OrigenAportacion.puerta,
                     equipo_id=equipo_dummy.id,
                     registrado_por=usuario_sistema.id,
-                    importe=importe,
-                    forma_pago=FormaPago.efectivo,
                     fecha=fecha.date(),
-                    anio_campania=anio_campania,
+                    resultado=resultado,
                     observaciones=observaciones if observaciones else None,
                 )
-                session.add(aportacion)
-                stats["importadas"] += 1
+                session.add(visita)
+                await session.flush()
+                
+                if resultado == "aporta" and importe is not None:
+                    aportacion = Aportacion(
+                        vivienda_id=vivienda_id,
+                        visita_id=visita.id,
+                        origen=OrigenAportacion.puerta,
+                        equipo_id=equipo_dummy.id,
+                        registrado_por=usuario_sistema.id,
+                        importe=importe,
+                        forma_pago=FormaPago.efectivo,
+                        fecha=fecha.date(),
+                        anio_campania=anio_campania,
+                        observaciones=observaciones if observaciones else None,
+                    )
+                    session.add(aportacion)
+                    stats["importadas"] += 1
+                else:
+                    stats["visitas_sin_aporte"] += 1
 
                 # Commit cada 200 filas para no acumular demasiado en memoria
-                if stats["importadas"] % 200 == 0:
+                total_registros = stats["importadas"] + stats["visitas_sin_aporte"]
+                if total_registros % 200 == 0:
                     await session.commit()
-                    print(f"  → {stats['importadas']} aportaciones insertadas...")
+                    print(f"  → {total_registros} registros insertados...")
 
             except Exception as e:
                 errores.append({"fila": i, "id": row.get("ID", "?"), "motivo": str(e)})
@@ -296,8 +336,9 @@ async def main():
     print("="*50)
     print(f"  Total filas procesadas:      {stats['total']}")
     print(f"  Aportaciones importadas:     {stats['importadas']}")
-    print(f"  Descartadas (no monetario):  {stats['descartadas_no_monetario']}")
-    print(f"  Descartadas (error):         {stats['descartadas_error']}")
+    print(f"  Visitas sin aportación:      {stats['visitas_sin_aporte']}")
+    print(f"  Descartadas explícitas:      {stats['descartadas']}")
+    print(f"  Descartadas (errores/raro):  {stats['descartadas_error']}")
     print(f"  Calles creadas:              {stats['calles_creadas']}")
     print(f"  Viviendas creadas:           {stats['viviendas_creadas']}")
     print("="*50)
