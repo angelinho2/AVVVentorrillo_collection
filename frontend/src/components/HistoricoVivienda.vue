@@ -54,7 +54,10 @@
                   <div style="font-size:0.85rem; color:var(--clr-text)">
                     <div v-for="(obs, idx) in observacionesReales(h.observaciones)" :key="idx" :style="idx > 0 ? 'margin-top:0.4rem' : ''">
                       <span style="color:var(--clr-muted); font-weight:600; margin-right:0.3rem">{{ formatDate(obs.fecha) }}:</span>
-                      <span>{{ obs.texto }}</span>
+                      <span v-if="extractBadge(obs.texto)" style="background:var(--clr-border); padding:0.1rem 0.3rem; border-radius:4px; font-size:0.75rem; margin-right:0.3rem; color:var(--clr-muted)">
+                        {{ extractBadge(obs.texto) }}
+                      </span>
+                      <span>{{ extractTexto(obs.texto) }}</span>
                     </div>
                   </div>
                 </td>
@@ -105,6 +108,23 @@ function observacionesReales(obsList) {
 
 function tieneObservacionesReales(obsList) {
   return observacionesReales(obsList).length > 0
+}
+
+function extractBadge(texto) {
+  if (texto.match(/^\[.*?\]/)) {
+    return texto.split(']')[0].substring(1)
+  }
+  return null
+}
+
+function extractTexto(texto) {
+  if (texto.includes('] - ')) {
+    return texto.split('] - ')[1]
+  }
+  if (texto.match(/^\[.*?\]/)) {
+    return texto.split(']')[1].trim()
+  }
+  return texto
 }
 
 function formatEur(n) {
