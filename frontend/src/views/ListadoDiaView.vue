@@ -6,40 +6,82 @@
       </template>
     </PageHeader>
 
-    <div v-if="cargando" style="display:flex;justify-content:center;padding:2rem">
-      <div class="spinner"></div>
+    <!-- Pestañas -->
+    <div class="tab-bar" style="padding:0 1rem; margin-top:1rem">
+      <button class="tab-btn" :class="{ active: tab === 'aportaciones' }" @click="tab = 'aportaciones'">Mis aportaciones</button>
+      <button class="tab-btn" :class="{ active: tab === 'reintentos' }" @click="tab = 'reintentos'">Reintentos</button>
     </div>
 
-    <div v-else-if="!aportaciones.length" class="card" style="text-align:center;color:var(--clr-muted);padding:2rem">
-      No hay aportaciones registradas hoy
-    </div>
+    <div v-if="tab === 'aportaciones'" class="stack" style="margin-top:1rem">
+      <div v-if="cargando" style="display:flex;justify-content:center;padding:2rem">
+        <div class="spinner"></div>
+      </div>
 
-    <div v-else class="stack">
-      <div v-for="a in aportaciones" :key="a.id" class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>
-            <div style="font-weight:600">{{ formatEur(a.importe) }}
-              <span class="badge" :class="a.forma_pago === 'bizum' ? 'badge-warning' : 'badge-muted'" style="margin-left:0.4rem">
-                {{ a.forma_pago === 'bizum' ? '📱' : '💵' }} {{ a.forma_pago }}
-              </span>
+      <div v-else-if="!aportaciones.length" class="card" style="text-align:center;color:var(--clr-muted);padding:2rem">
+        No hay aportaciones registradas hoy
+      </div>
+
+      <div v-else class="stack">
+        <div v-for="a in aportaciones" :key="a.id" class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-weight:600">{{ formatEur(a.importe) }}
+                <span class="badge" :class="a.forma_pago === 'bizum' ? 'badge-warning' : 'badge-muted'" style="margin-left:0.4rem">
+                  {{ a.forma_pago === 'bizum' ? '📱' : '💵' }} {{ a.forma_pago }}
+                </span>
+              </div>
+              <div v-if="a.vivienda" style="font-weight:500;margin-top:0.3rem">
+                {{ a.vivienda.calle?.nombre }} {{ a.vivienda.portal }}
+                <span v-if="a.vivienda.piso">{{ a.vivienda.piso }}</span>
+                <span v-if="a.vivienda.puerta">{{ a.vivienda.puerta }}</span>
+              </div>
+              <div v-else-if="a.nombre_persona" style="font-weight:500;margin-top:0.3rem">
+                👤 {{ a.nombre_persona }}
+              </div>
+              <div style="font-size:0.8rem;color:var(--clr-muted);margin-top:0.2rem">
+                {{ a.creado_en ? new Date(a.creado_en).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'}) : '' }}
+                · {{ a.origen === 'local' ? 'Local' : 'Puerta' }}
+              </div>
+              <div v-if="a.observaciones" style="font-size:0.8rem;color:var(--clr-muted)">{{ a.observaciones }}</div>
             </div>
-            <div v-if="a.vivienda" style="font-weight:500;margin-top:0.3rem">
-              {{ a.vivienda.calle?.nombre }} {{ a.vivienda.portal }}
-              <span v-if="a.vivienda.piso">{{ a.vivienda.piso }}</span>
-              <span v-if="a.vivienda.puerta">{{ a.vivienda.puerta }}</span>
+            <div style="display:flex;gap:0.4rem">
+              <button class="btn btn-ghost btn-sm" @click="editar(a)">✏️</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--clr-danger)" @click="confirmarBorrar(a)">🗑️</button>
             </div>
-            <div v-else-if="a.nombre_persona" style="font-weight:500;margin-top:0.3rem">
-              👤 {{ a.nombre_persona }}
-            </div>
-            <div style="font-size:0.8rem;color:var(--clr-muted);margin-top:0.2rem">
-              {{ a.creado_en ? new Date(a.creado_en).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'}) : '' }}
-              · {{ a.origen === 'local' ? 'Local' : 'Puerta' }}
-            </div>
-            <div v-if="a.observaciones" style="font-size:0.8rem;color:var(--clr-muted)">{{ a.observaciones }}</div>
           </div>
-          <div style="display:flex;gap:0.4rem">
-            <button class="btn btn-ghost btn-sm" @click="editar(a)">✏️</button>
-            <button class="btn btn-ghost btn-sm" style="color:var(--clr-danger)" @click="confirmarBorrar(a)">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestaña Reintentos -->
+    <div v-if="tab === 'reintentos'" class="stack" style="margin-top:1rem">
+      <div class="card row" style="margin-bottom:1rem">
+        <div>
+          <label for="fecha-reintentos">Día de la visita original</label>
+          <input id="fecha-reintentos" class="input" type="date" v-model="fechaReintentos" @change="cargarReintentos" />
+        </div>
+      </div>
+      
+      <div v-if="cargandoReintentos" style="display:flex;justify-content:center;padding:2rem">
+        <div class="spinner"></div>
+      </div>
+      
+      <div v-else-if="!visitasReintentar.length" class="card" style="text-align:center;color:var(--clr-muted);padding:2rem">
+        No hay viviendas a las que volver este día
+      </div>
+      
+      <div v-else class="stack">
+        <div v-for="v in visitasReintentar" :key="v.id" class="card">
+          <div style="font-weight:600; font-size:1.1rem">
+            {{ v.vivienda?.calle?.nombre }} {{ v.vivienda?.portal }}
+            <span v-if="v.vivienda?.piso">{{ v.vivienda.piso }}</span>
+            <span v-if="v.vivienda?.puerta">{{ v.vivienda.puerta }}</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--clr-muted);margin-top:0.2rem">
+            Anotado a las {{ v.creado_en ? new Date(v.creado_en).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'}) : '' }}
+          </div>
+          <div v-if="v.observaciones" style="margin-top:0.4rem; padding:0.5rem; background:var(--clr-surface2); border-radius:var(--radius); font-size:0.9rem">
+            {{ v.observaciones }}
           </div>
         </div>
       </div>
@@ -116,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import BuscadorCalle from '../components/BuscadorCalle.vue'
 import SelectorVivienda from '../components/SelectorVivienda.vue'
@@ -124,6 +166,8 @@ import api from '../api/client.js'
 import { useAuthStore } from '../stores/auth.js'
 
 const auth = useAuthStore()
+const tab = ref('aportaciones')
+
 const aportaciones = ref([])
 const cargando = ref(false)
 const editando = ref(null)
@@ -136,13 +180,39 @@ const borrandoId = ref(null)
 const toast = ref('')
 const toastError = ref(false)
 
-const totalDia = computed(() => aportaciones.value.reduce((s, a) => s + Number(a.importe), 0))
+const visitasReintentar = ref([])
+const cargandoReintentos = ref(false)
+const fechaReintentos = ref(new Date().toISOString().slice(0, 10))
+
+const totalDia = computed(() => {
+  if (tab.value !== 'aportaciones') return 0
+  return aportaciones.value.reduce((s, a) => s + Number(a.importe), 0)
+})
 
 function formatEur(n) {
   return Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
 }
 
-onMounted(cargar)
+onMounted(() => {
+  cargar()
+  cargarReintentos()
+})
+
+watch(tab, (t) => {
+  if (t === 'reintentos' && !visitasReintentar.value.length) cargarReintentos()
+})
+
+async function cargarReintentos() {
+  cargandoReintentos.value = true
+  try {
+    const res = await api.get('/visitas', { 
+      params: { fecha_inicio: fechaReintentos.value, fecha_fin: fechaReintentos.value, resultado: 'reintentar' } 
+    })
+    visitasReintentar.value = res.data
+  } finally {
+    cargandoReintentos.value = false
+  }
+}
 
 async function cargar() {
   cargando.value = true
@@ -228,3 +298,15 @@ function mostrarToast(msg, esError = false) {
   setTimeout(() => { toast.value = '' }, 2500)
 }
 </script>
+
+<style scoped>
+.tab-bar { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 2px; }
+.tab-btn {
+  padding: 0.5rem 0.9rem; border-radius: var(--radius);
+  border: 1.5px solid var(--clr-border);
+  background: transparent; color: var(--clr-muted);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: all var(--transition);
+}
+.tab-btn.active { background: var(--clr-primary); border-color: var(--clr-primary); color: #fff; }
+</style>

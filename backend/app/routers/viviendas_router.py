@@ -70,16 +70,25 @@ async def historico_vivienda(
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_user),
 ):
-    result = await db.execute(
+    from app.models import Visita
+    
+    res_ap = await db.execute(
         select(Aportacion)
         .where(Aportacion.vivienda_id == vivienda_id)
         .order_by(Aportacion.anio_campania.desc(), Aportacion.fecha.desc())
     )
-    aportaciones = result.scalars().all()
+    aportaciones = res_ap.scalars().all()
+    
+    res_vis = await db.execute(
+        select(Visita)
+        .where(Visita.vivienda_id == vivienda_id, Visita.resultado != "aporta")
+        .order_by(Visita.fecha.desc())
+    )
+    visitas = res_vis.scalars().all()
     
     agrupado = {}
-    for ap in aportaciones:
-        anio = ap.anio_campania
+    
+    def init_anio(anio):
         if anio not in agrupado:
             agrupado[anio] = {
                 "anio_campania": anio,
@@ -87,6 +96,10 @@ async def historico_vivienda(
                 "num_aportaciones": 0,
                 "observaciones": []
             }
+
+    for ap in aportaciones:
+        anio = ap.anio_campania
+        init_anio(anio)
         agrupado[anio]["total"] += float(ap.importe)
         agrupado[anio]["num_aportaciones"] += 1
         
@@ -96,4 +109,20 @@ async def historico_vivienda(
                 "texto": ap.observaciones.strip()
             })
             
-    return list(agrupado.values())
+    for vis in visitas:
+        anio = vis.fecha.year
+        init_anio(anio)
+        
+        texto_obs = f"[{vis.resultado.value.replace('_', ' ').capitalize()}]"
+        if vis.observaciones and str(vis.observaciones).strip():
+            texto_obs += f" - {str(vis.observaciones).strip()}"
+            
+        agrupado[anio]["observaciones"].append({
+            "fecha": vis.fecha,
+            "texto": texto_obs
+        })
+            
+    for val in agrupado.values():
+        val["observaciones"].sort(key=lambda x: x["fecha"], reverse=True)
+            
+    return sorted(list(agrupado.values()), key=lambda x: x["anio_campania"], reverse=True)

@@ -11,8 +11,8 @@ def generar_excel(rows, anio=None) -> bytes:
 
     # Cabecera
     headers = [
-        "ID", "Fecha de pago", "Hora de registro", "Año campaña", "Calle", "Portal", "Piso", "Puerta",
-        "Nombre persona", "Origen", "Equipo", "Importe (€)", "Forma pago", "Observaciones",
+        "ID", "Fecha", "Hora de registro", "Año campaña", "Calle", "Portal", "Piso", "Puerta",
+        "Nombre persona", "Origen", "Equipo", "Importe (€)", "Forma pago", "Observaciones", "Resultado Visita"
     ]
 
     header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
@@ -25,24 +25,26 @@ def generar_excel(rows, anio=None) -> bytes:
         cell.alignment = Alignment(horizontal="center")
 
     # Datos
-    for row_idx, (aportacion, vivienda, calle, equipo) in enumerate(rows, 2):
-        ws.cell(row=row_idx, column=1, value=aportacion.id)
-        ws.cell(row=row_idx, column=2, value=str(aportacion.fecha))
-        ws.cell(row=row_idx, column=3, value=aportacion.creado_en.strftime("%H:%M:%S %d/%m/%Y") if aportacion.creado_en else "")
-        ws.cell(row=row_idx, column=4, value=aportacion.anio_campania)
-        ws.cell(row=row_idx, column=5, value=calle.nombre if calle else "")
-        ws.cell(row=row_idx, column=6, value=vivienda.portal if vivienda else "")
-        ws.cell(row=row_idx, column=7, value=vivienda.piso if vivienda else "")
-        ws.cell(row=row_idx, column=8, value=vivienda.puerta if vivienda else "")
-        ws.cell(row=row_idx, column=9, value=aportacion.nombre_persona or "")
-        ws.cell(row=row_idx, column=10, value=aportacion.origen.value)
-        ws.cell(row=row_idx, column=11, value=equipo.nombre)
-        ws.cell(row=row_idx, column=12, value=float(aportacion.importe))
-        ws.cell(row=row_idx, column=13, value=aportacion.forma_pago.value)
-        ws.cell(row=row_idx, column=14, value=aportacion.observaciones or "")
+    for row_idx, data in enumerate(rows, 2):
+        ws.cell(row=row_idx, column=1, value=data["id"])
+        ws.cell(row=row_idx, column=2, value=data["fecha"])
+        ws.cell(row=row_idx, column=3, value=data["creado_en"].strftime("%H:%M:%S %d/%m/%Y") if data["creado_en"] else "")
+        ws.cell(row=row_idx, column=4, value=data["anio_campania"])
+        ws.cell(row=row_idx, column=5, value=data["calle_nombre"])
+        ws.cell(row=row_idx, column=6, value=data["portal"])
+        ws.cell(row=row_idx, column=7, value=data["piso"])
+        ws.cell(row=row_idx, column=8, value=data["puerta"])
+        ws.cell(row=row_idx, column=9, value=data["nombre_persona"])
+        ws.cell(row=row_idx, column=10, value=data["origen"])
+        ws.cell(row=row_idx, column=11, value=data["equipo_nombre"])
+        ws.cell(row=row_idx, column=12, value=data["importe"] if data["importe"] is not None else "")
+        ws.cell(row=row_idx, column=13, value=data["forma_pago"])
+        ws.cell(row=row_idx, column=14, value=data["observaciones"])
+        ws.cell(row=row_idx, column=15, value=data["resultado_visita"])
 
         # Formato numérico para importe
-        ws.cell(row=row_idx, column=12).number_format = "#,##0.00 €"
+        if data["importe"] is not None:
+            ws.cell(row=row_idx, column=12).number_format = "#,##0.00 €"
 
     # Auto-ajustar anchura de columnas
     for col in ws.columns:

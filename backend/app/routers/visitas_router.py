@@ -12,6 +12,42 @@ from app.config import settings
 
 router = APIRouter()
 
+from datetime import date
+from typing import Optional
+from app.models import ResultadoVisita, Calle
+
+@router.get("", response_model=list[VisitaOut])
+async def buscar_visitas(
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    resultado: Optional[ResultadoVisita] = None,
+    equipo_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    q = (
+        select(Visita)
+        .options(
+            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle),
+            selectinload(Visita.vivienda).selectinload(Vivienda.calle)
+        )
+    )
+    if fecha_inicio:
+        q = q.where(Visita.fecha >= fecha_inicio)
+    if fecha_fin:
+        q = q.where(Visita.fecha <= fecha_fin)
+    if resultado:
+        q = q.where(Visita.resultado == resultado)
+    if equipo_id:
+        q = q.where(Visita.equipo_id == equipo_id)
+        
+    q = q.order_by(Visita.fecha.desc(), Visita.id.desc()).limit(limit).offset(offset)
+    
+    result = await db.execute(q)
+    return result.scalars().all()
+
 
 def _get_equipo_id_from_token(current_user: Usuario, token_equipo_id: int) -> int:
     return token_equipo_id

@@ -271,6 +271,63 @@
       </div>
     </div>
 
+    <!-- ── SEGUIMIENTO VISITAS ─────────────────────────────────────────── -->
+    <div v-if="tab === 'seguimiento'" class="stack" style="margin-top:1rem">
+      <div class="card row" style="margin-bottom:1rem">
+        <div>
+          <label for="fecha-inicio-seg">Fecha Inicio</label>
+          <input id="fecha-inicio-seg" class="input" type="date" v-model="segFechaInicio" />
+        </div>
+        <div>
+          <label for="fecha-fin-seg">Fecha Fin</label>
+          <input id="fecha-fin-seg" class="input" type="date" v-model="segFechaFin" />
+        </div>
+        <div>
+          <label for="resultado-seg">Resultado</label>
+          <select id="resultado-seg" class="select" v-model="segResultado">
+            <option value="">Todos (sin aportar)</option>
+            <option value="no_aporta">No aporta</option>
+            <option value="no_abre">No abre</option>
+            <option value="reintentar">Reintentar</option>
+            <option value="pasara_por_local">Pasará por local</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" @click="cargarSeguimiento">Filtrar</button>
+        </div>
+      </div>
+
+      <div v-if="segCargando" style="display:flex;justify-content:center;padding:2rem">
+        <div class="spinner"></div>
+      </div>
+
+      <div v-else-if="!segVisitas.length" class="card" style="text-align:center;color:var(--clr-muted);padding:2rem">
+        No se han encontrado visitas
+      </div>
+
+      <div v-else class="stack">
+        <div v-for="v in segVisitas" :key="v.id" class="card">
+          <div style="font-weight:600; font-size:1.1rem">
+            {{ v.vivienda?.calle?.nombre }} {{ v.vivienda?.portal }}
+            <span v-if="v.vivienda?.piso">{{ v.vivienda.piso }}</span>
+            <span v-if="v.vivienda?.puerta">{{ v.vivienda.puerta }}</span>
+            <span class="badge" style="margin-left:0.5rem" :class="{
+              'badge-warning': v.resultado === 'reintentar',
+              'badge-danger': v.resultado === 'no_aporta',
+              'badge-muted': v.resultado === 'no_abre'
+            }">{{ v.resultado.replace('_', ' ') }}</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--clr-muted);margin-top:0.2rem">
+            Anotado el {{ new Date(v.fecha).toLocaleDateString('es-ES') }} 
+            <span v-if="v.creado_en"> a las {{ new Date(v.creado_en).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'}) }}</span>
+          </div>
+          <div v-if="v.observaciones" style="margin-top:0.4rem; padding:0.5rem; background:var(--clr-surface2); border-radius:var(--radius); font-size:0.9rem">
+            {{ v.observaciones }}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <button class="btn btn-ghost btn-sm" style="color:var(--clr-danger);margin-top:1.5rem"
             @click="auth.logout(); router.push('/login')">
       🚪 Cerrar sesión
@@ -279,7 +336,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import BuscadorCalle from '../components/BuscadorCalle.vue'
@@ -293,6 +350,7 @@ const router = useRouter()
 const tabs = [
   { key: 'reporte', label: '📊 Reportes' },
   { key: 'historial', label: '📖 Historial' },
+  { key: 'seguimiento', label: '🔍 Seguimiento' },
   { key: 'equipos', label: '👥 Equipos' },
   { key: 'usuarios', label: '🙋 Cobradores' },
   { key: 'calles',  label: '🛣️ Calles' },
@@ -464,16 +522,43 @@ async function histGuardarEdicion() {
 }
 
 async function histBorrar() {
-  if (!histBorrandoId.value) return
   try {
     await api.delete(`/aportaciones/${histBorrandoId.value}`)
-    mostrarToast('Aportación eliminada')
     histBorrandoId.value = null
     cargarHistorial(true)
   } catch (e) {
-    mostrarToast(e.response?.data?.detail || 'Error al eliminar', true)
+    mostrarToast(e.response?.data?.detail || 'Error al borrar', true)
   }
 }
+
+// ==========================================
+// SEGUIMIENTO VISITAS
+// ==========================================
+const segVisitas = ref([])
+const segCargando = ref(false)
+const segFechaInicio = ref(new Date().toISOString().slice(0, 10))
+const segFechaFin = ref(new Date().toISOString().slice(0, 10))
+const segResultado = ref('')
+
+async function cargarSeguimiento() {
+  segCargando.value = true
+  try {
+    const params = { fecha_inicio: segFechaInicio.value, fecha_fin: segFechaFin.value }
+    if (segResultado.value) params.resultado = segResultado.value
+    const res = await api.get('/visitas', { params })
+    if (!segResultado.value) {
+      segVisitas.value = res.data.filter(v => v.resultado !== 'aporta')
+    } else {
+      segVisitas.value = res.data
+    }
+  } finally {
+    segCargando.value = false
+  }
+}
+
+watch(tab, (t) => {
+  if (t === 'seguimiento' && !segVisitas.value.length) cargarSeguimiento()
+})
 
 async function exportarExcel() {
   try {
