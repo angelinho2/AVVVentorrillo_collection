@@ -144,6 +144,9 @@
             <button class="btn btn-ghost btn-sm" @click="resetPassword(u)" title="Restablecer contraseña">
               🔑
             </button>
+            <button class="btn btn-ghost btn-sm" @click="toggleAdmin(u)" :title="u.es_admin ? 'Quitar administrador' : 'Hacer administrador'">
+              👑
+            </button>
             <button class="btn btn-ghost btn-sm" @click="toggleUsuario(u)">
               {{ u.activo ? 'Desactivar' : 'Activar' }}
             </button>
@@ -455,6 +458,15 @@ async function resetPassword(u) {
 async function toggleUsuario(u) {
   await api.patch(`/usuarios/${u.id}`, { activo: !u.activo })
   cargarUsuarios()
+}
+async function toggleAdmin(u) {
+  try {
+    await api.patch(`/usuarios/${u.id}`, { es_admin: !u.es_admin });
+    mostrarToast(u.es_admin ? 'Privilegios de administrador retirados' : 'Privilegios de administrador concedidos');
+    cargarUsuarios();
+  } catch (e) {
+    mostrarToast(e.response?.data?.detail || 'Error al cambiar privilegios', true);
+  }
 }
 async function crearCalle() {
   try {
