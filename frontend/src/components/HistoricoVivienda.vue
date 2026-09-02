@@ -4,7 +4,11 @@
     <div class="historico-compact">
       <div>
         <span class="anio">{{ historico[0].anio_campania }}</span>
-        <span class="importe"> {{ formatEur(historico[0].total) }}</span>
+        <span class="importe" v-if="historico[0].num_aportaciones > 0"> {{ formatEur(historico[0].total) }}</span>
+        <span class="importe" v-else-if="historico[0].observaciones && historico[0].observaciones.length" style="color:var(--clr-danger);font-size:0.9rem;margin-left:4px">
+          {{ historico[0].observaciones[0].texto.split('-')[0].replace(/\[|\]/g, '').trim() }}
+        </span>
+        <span class="importe" v-else> 0,00 €</span>
       </div>
       <button v-if="historico.length > 1" class="btn btn-ghost btn-sm" @click="abierto = true">
         Ver más años
@@ -35,7 +39,7 @@
                       {{ h.observaciones[0].texto.split('-')[0].replace(/\[|\]/g, '').trim() }}
                     </strong>
                     <strong v-else style="color:var(--clr-muted)">0,00 €</strong>
-                    <button v-if="h.observaciones && h.observaciones.length" 
+                    <button v-if="tieneObservacionesReales(h.observaciones)" 
                             class="btn btn-ghost btn-sm" 
                             @click="toggleObservaciones(h.anio_campania)"
                             style="padding:0.2rem 0.5rem; height:auto; font-size:0.75rem"
@@ -45,10 +49,10 @@
                   </div>
                 </td>
               </tr>
-              <tr v-if="verObservaciones[h.anio_campania] && h.observaciones && h.observaciones.length">
+              <tr v-if="verObservaciones[h.anio_campania] && tieneObservacionesReales(h.observaciones)">
                 <td colspan="3" style="background:var(--clr-surface2); padding:0.75rem; border-bottom:1px solid var(--clr-border);">
                   <div style="font-size:0.85rem; color:var(--clr-text)">
-                    <div v-for="(obs, idx) in h.observaciones" :key="idx" :style="idx > 0 ? 'margin-top:0.4rem' : ''">
+                    <div v-for="(obs, idx) in observacionesReales(h.observaciones)" :key="idx" :style="idx > 0 ? 'margin-top:0.4rem' : ''">
                       <span style="color:var(--clr-muted); font-weight:600; margin-right:0.3rem">{{ formatDate(obs.fecha) }}:</span>
                       <span>{{ obs.texto }}</span>
                     </div>
@@ -92,6 +96,15 @@ watch(() => props.viviendaId, async (id) => {
 
 function toggleObservaciones(anio) {
   verObservaciones.value[anio] = !verObservaciones.value[anio]
+}
+
+function observacionesReales(obsList) {
+  if (!obsList) return []
+  return obsList.filter(o => !o.texto.match(/^\[[A-Za-z áéíóú]+\]$/))
+}
+
+function tieneObservacionesReales(obsList) {
+  return observacionesReales(obsList).length > 0
 }
 
 function formatEur(n) {
