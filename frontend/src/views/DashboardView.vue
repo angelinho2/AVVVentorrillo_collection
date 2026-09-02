@@ -140,9 +140,14 @@
             <span :style="{ opacity: u.activo ? 1 : 0.45 }">{{ u.nombre_usuario }}</span>
             <span v-if="u.es_admin" class="badge badge-warning" style="margin-left:0.4rem;font-size:0.7rem">admin</span>
           </div>
-          <button class="btn btn-ghost btn-sm" @click="toggleUsuario(u)">
-            {{ u.activo ? '🟢 Activo' : '🔴 Inactivo' }}
-          </button>
+          <div style="display: flex; gap: 0.5rem">
+            <button class="btn btn-ghost btn-sm" @click="resetPassword(u)" title="Restablecer contraseña">
+              🔑
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="toggleUsuario(u)">
+              {{ u.activo ? 'Desactivar' : 'Activar' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -436,6 +441,17 @@ async function crearUsuario() {
     cargarUsuarios()
   } catch (e) { mostrarToast(e.response?.data?.detail || 'Error', true) }
 }
+async function resetPassword(u) {
+  const pwd = prompt(`Introduce la nueva contraseña para el usuario ${u.nombre_usuario}:`);
+  if (!pwd) return;
+  try {
+    await api.patch(`/usuarios/${u.id}`, { password: pwd });
+    mostrarToast('Contraseña restablecida correctamente');
+  } catch(e) {
+    mostrarToast(e.response?.data?.detail || 'Error al cambiar contraseña', true);
+  }
+}
+
 async function toggleUsuario(u) {
   await api.patch(`/usuarios/${u.id}`, { activo: !u.activo })
   cargarUsuarios()
