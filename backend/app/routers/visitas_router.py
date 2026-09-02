@@ -88,11 +88,12 @@ async def registrar_visita(
 
     await db.commit()
     
-    # Cargar la visita junto con la relación aportacion usando selectinload
+    # Cargar la visita junto con las relaciones usando selectinload
     result = await db.execute(
         select(Visita)
         .options(
-            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle)
+            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle),
+            selectinload(Visita.vivienda).selectinload(Vivienda.calle)
         )
         .where(Visita.id == visita.id)
     )
@@ -109,7 +110,8 @@ async def editar_visita(
     result = await db.execute(
         select(Visita)
         .options(
-            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle)
+            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle),
+            selectinload(Visita.vivienda).selectinload(Vivienda.calle)
         )
         .where(Visita.id == visita_id)
     )
@@ -121,8 +123,17 @@ async def editar_visita(
         setattr(visita, field, value)
 
     await db.commit()
-    await db.refresh(visita)
-    return visita
+    
+    # Recargar con las relaciones para devolver
+    result = await db.execute(
+        select(Visita)
+        .options(
+            selectinload(Visita.aportacion).selectinload(Aportacion.vivienda).selectinload(Vivienda.calle),
+            selectinload(Visita.vivienda).selectinload(Vivienda.calle)
+        )
+        .where(Visita.id == visita_id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/{visita_id}", status_code=204)
