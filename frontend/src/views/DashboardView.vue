@@ -456,10 +456,14 @@ async function resetPassword(u) {
 }
 
 async function toggleUsuario(u) {
+  const action = u.activo ? 'desactivar' : 'activar';
+  if (!confirm(`¿Estás seguro de que deseas ${action} al usuario ${u.nombre_usuario}?`)) return;
   await api.patch(`/usuarios/${u.id}`, { activo: !u.activo })
   cargarUsuarios()
 }
 async function toggleAdmin(u) {
+  const action = u.es_admin ? 'quitar los privilegios de administrador a' : 'hacer administrador a';
+  if (!confirm(`¿Estás seguro de que deseas ${action} ${u.nombre_usuario}?`)) return;
   try {
     await api.patch(`/usuarios/${u.id}`, { es_admin: !u.es_admin });
     mostrarToast(u.es_admin ? 'Privilegios de administrador retirados' : 'Privilegios de administrador concedidos');
