@@ -30,7 +30,11 @@
                 <td>{{ h.num_aportaciones }}</td>
                 <td>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong>{{ formatEur(h.total) }}</strong>
+                    <strong v-if="h.num_aportaciones > 0">{{ formatEur(h.total) }}</strong>
+                    <strong v-else-if="h.observaciones && h.observaciones.length" style="color:var(--clr-danger); font-size:0.9rem">
+                      {{ h.observaciones[0].texto.split('-')[0].replace(/\[|\]/g, '').trim() }}
+                    </strong>
+                    <strong v-else style="color:var(--clr-muted)">0,00 €</strong>
                     <button v-if="h.observaciones && h.observaciones.length" 
                             class="btn btn-ghost btn-sm" 
                             @click="toggleObservaciones(h.anio_campania)"

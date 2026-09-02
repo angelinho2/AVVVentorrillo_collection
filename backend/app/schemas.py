@@ -171,3 +171,4 @@ class VisitaOut(BaseModel):
     observaciones: Optional[str] = None
     creado_en: datetime
     aportacion: Optional[AportacionOut] = None
+    vivienda: Optional[ViviendaOut] = None
