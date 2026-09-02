@@ -10,8 +10,8 @@
         </span>
         <span class="importe" v-else> 0,00 €</span>
       </div>
-      <button v-if="historico.length > 1" class="btn btn-ghost btn-sm" @click="abierto = true">
-        Ver más años
+      <button v-if="historico.length > 1 || tieneObservacionesReales(historico[0].observaciones)" class="btn btn-ghost btn-sm" @click="abierto = true">
+        {{ historico.length > 1 ? 'Ver más años' : 'Ver notas' }}
       </button>
     </div>
 
