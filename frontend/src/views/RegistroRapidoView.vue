@@ -162,6 +162,14 @@ const puedeGuardar = computed(() => {
 onMounted(async () => {
   const res = await api.get('/equipos', { params: { solo_activos: true } })
   equipos.value = res.data
+
+  const ultimaFecha = localStorage.getItem('ultimaFechaRegistro')
+  if (ultimaFecha === fechaRegistro.value) {
+    const c = localStorage.getItem('ultimaCalle')
+    const p = localStorage.getItem('ultimoPortal')
+    if (c) calle.value = JSON.parse(c)
+    if (p) vivienda.value.portal = p
+  }
 })
 
 async function buscarVivienda() {
@@ -213,7 +221,13 @@ async function guardar() {
 
     await api.post('/visitas', body)
     mostrarToast('✅ Visita guardada correctamente')
-    resetForm()
+    
+    // Guardar para autocompletar la próxima vez
+    localStorage.setItem('ultimaCalle', JSON.stringify(calle.value))
+    localStorage.setItem('ultimoPortal', vivienda.value.portal)
+    localStorage.setItem('ultimaFechaRegistro', fechaRegistro.value)
+
+    resetForm(true)
   } catch (e) {
     mostrarToast(e.response?.data?.detail || 'Error al guardar', true)
   } finally {
@@ -221,9 +235,13 @@ async function guardar() {
   }
 }
 
-function resetForm() {
-  calle.value = null
-  vivienda.value = { portal: '', piso: '', puerta: '' }
+function resetForm(keepContext = false) {
+  if (!keepContext) {
+    calle.value = null
+    vivienda.value.portal = ''
+  }
+  vivienda.value.piso = ''
+  vivienda.value.puerta = ''
   viviendaId.value = null
   resultado.value = ''
   importeStr.value = ''
