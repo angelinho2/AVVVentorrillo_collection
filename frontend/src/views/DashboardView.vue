@@ -104,6 +104,9 @@
         <div v-for="e in equipos" :key="e.id" class="item-row">
           <span :style="{ opacity: e.activo ? 1 : 0.45 }">{{ e.nombre }}</span>
           <div style="display:flex;gap:0.4rem">
+            <button class="btn btn-ghost btn-sm" @click="editarEquipo(e)" title="Renombrar equipo">
+              ✏️
+            </button>
             <button class="btn btn-ghost btn-sm" @click="toggleEquipo(e)">
               {{ e.activo ? '🟢 Activo' : '🔴 Inactivo' }}
             </button>
@@ -428,9 +431,18 @@ async function crearEquipo() {
   try {
     await api.post('/equipos', { nombre: nuevoEquipo.value.trim() })
     nuevoEquipo.value = ''
-    mostrarToast('Equipo creado')
     cargarEquipos()
   } catch (e) { mostrarToast(e.response?.data?.detail || 'Error', true) }
+}
+async function editarEquipo(e) {
+  const newName = prompt(`Introduce el nuevo nombre para el equipo "${e.nombre}":`, e.nombre);
+  if (!newName || newName.trim() === '' || newName.trim() === e.nombre) return;
+  try {
+    await api.patch(`/equipos/${e.id}`, { nombre: newName.trim() });
+    cargarEquipos();
+  } catch (err) {
+    mostrarToast(err.response?.data?.detail || 'Error al renombrar', true);
+  }
 }
 async function toggleEquipo(e) {
   await api.patch(`/equipos/${e.id}`, { activo: !e.activo })
