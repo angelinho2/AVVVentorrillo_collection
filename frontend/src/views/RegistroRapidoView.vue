@@ -163,13 +163,10 @@ onMounted(async () => {
   const res = await api.get('/equipos', { params: { solo_activos: true } })
   equipos.value = res.data
 
-  const ultimaFecha = localStorage.getItem('ultimaFechaRegistro')
-  if (ultimaFecha === fechaRegistro.value) {
-    const c = localStorage.getItem('ultimaCalle')
-    const p = localStorage.getItem('ultimoPortal')
-    if (c) calle.value = JSON.parse(c)
-    if (p) vivienda.value.portal = p
-  }
+  const c = localStorage.getItem('ultimaCalle')
+  const p = localStorage.getItem('ultimoPortal')
+  if (c) calle.value = JSON.parse(c)
+  if (p) vivienda.value.portal = p
 })
 
 async function buscarVivienda() {
