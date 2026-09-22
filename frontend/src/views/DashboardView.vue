@@ -320,11 +320,11 @@
         </div>
       </div>
 
-      <div v-if="segCargando" style="display:flex;justify-content:center;padding:2rem">
+      <div v-if="segCargando && segOffset === 0" style="display:flex;justify-content:center;padding:2rem">
         <div class="spinner"></div>
       </div>
 
-      <div v-else-if="!segVisitas.length" class="card" style="text-align:center;color:var(--clr-muted);padding:2rem">
+      <div v-else-if="!segVisitas.length && !segTieneMas" class="card" style="text-align:center;color:var(--clr-muted);padding:2rem">
         No se han encontrado visitas
       </div>
 
