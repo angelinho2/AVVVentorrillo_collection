@@ -159,6 +159,7 @@ class VisitaPatch(BaseModel):
     resultado: Optional[ResultadoVisita] = None
     observaciones: Optional[str] = None
     equipo_id: Optional[int] = None
+    vivienda_id: Optional[int] = None
 
 class VisitaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

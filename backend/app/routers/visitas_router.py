@@ -16,10 +16,14 @@ from datetime import date
 from typing import Optional
 from app.models import ResultadoVisita, Calle
 
+from datetime import date, datetime
+
 @router.get("", response_model=list[VisitaOut])
 async def buscar_visitas(
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
+    creado_en_inicio: Optional[datetime] = None,
+    creado_en_fin: Optional[datetime] = None,
     resultado: Optional[ResultadoVisita] = None,
     equipo_id: Optional[int] = None,
     limit: int = 50,
@@ -42,6 +46,10 @@ async def buscar_visitas(
         q = q.where(Visita.resultado == resultado)
     if equipo_id:
         q = q.where(Visita.equipo_id == equipo_id)
+    if creado_en_inicio:
+        q = q.where(Visita.creado_en >= creado_en_inicio)
+    if creado_en_fin:
+        q = q.where(Visita.creado_en <= creado_en_fin)
         
     q = q.order_by(Visita.fecha.desc(), Visita.id.desc()).limit(limit).offset(offset)
     

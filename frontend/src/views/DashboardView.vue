@@ -284,14 +284,26 @@
 
     <!-- ── SEGUIMIENTO VISITAS ─────────────────────────────────────────── -->
     <div v-if="tab === 'seguimiento'" class="stack" style="margin-top:1rem">
-      <div class="card row" style="margin-bottom:1rem">
-        <div>
-          <label for="fecha-inicio-seg">Fecha Inicio</label>
-          <input id="fecha-inicio-seg" class="input" type="date" v-model="segFechaInicio" />
+      <div class="card" style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem">
+        <div style="display:flex;gap:0.5rem">
+          <div>
+            <label for="fecha-inicio-seg">Fecha Inicio</label>
+            <input id="fecha-inicio-seg" class="input" type="date" v-model="segFechaInicio" />
+          </div>
+          <div>
+            <label for="hora-inicio-seg">Hora (Opc)</label>
+            <input id="hora-inicio-seg" class="input" type="time" v-model="segHoraInicio" />
+          </div>
         </div>
-        <div>
-          <label for="fecha-fin-seg">Fecha Fin</label>
-          <input id="fecha-fin-seg" class="input" type="date" v-model="segFechaFin" />
+        <div style="display:flex;gap:0.5rem">
+          <div>
+            <label for="fecha-fin-seg">Fecha Fin</label>
+            <input id="fecha-fin-seg" class="input" type="date" v-model="segFechaFin" />
+          </div>
+          <div>
+            <label for="hora-fin-seg">Hora (Opc)</label>
+            <input id="hora-fin-seg" class="input" type="time" v-model="segHoraFin" />
+          </div>
         </div>
         <div>
           <label for="resultado-seg">Resultado</label>
@@ -303,8 +315,8 @@
             <option value="pasara_por_local">Pasará por local</option>
           </select>
         </div>
-        <div style="display:flex;align-items:flex-end">
-          <button class="btn btn-primary" @click="cargarSeguimiento">Filtrar</button>
+        <div>
+          <button class="btn btn-primary" @click="cargarSeguimiento(true)">Filtrar</button>
         </div>
       </div>
 
@@ -318,15 +330,20 @@
 
       <div v-else class="stack">
         <div v-for="v in segVisitas" :key="v.id" class="card">
-          <div style="font-weight:600; font-size:1.1rem">
-            {{ v.vivienda?.calle?.nombre }} {{ v.vivienda?.portal }}
-            <span v-if="v.vivienda?.piso">{{ v.vivienda.piso }}</span>
-            <span v-if="v.vivienda?.puerta">{{ v.vivienda.puerta }}</span>
-            <span class="badge" style="margin-left:0.5rem" :class="{
-              'badge-warning': v.resultado === 'reintentar',
-              'badge-danger': v.resultado === 'no_aporta',
-              'badge-muted': v.resultado === 'no_abre'
-            }">{{ v.resultado.replace('_', ' ') }}</span>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600; font-size:1.1rem">
+              {{ v.vivienda?.calle?.nombre }} {{ v.vivienda?.portal }}
+              <span v-if="v.vivienda?.piso">{{ v.vivienda.piso }}</span>
+              <span v-if="v.vivienda?.puerta">{{ v.vivienda.puerta }}</span>
+              <span class="badge" style="margin-left:0.5rem" :class="{
+                'badge-warning': v.resultado === 'reintentar',
+                'badge-danger': v.resultado === 'no_aporta',
+                'badge-muted': v.resultado === 'no_abre'
+              }">{{ v.resultado.replace('_', ' ') }}</span>
+            </div>
+            <div style="display:flex;gap:0.4rem">
+              <button class="btn btn-ghost btn-sm" @click="segEditar(v)">✏️</button>
+            </div>
           </div>
           <div style="font-size:0.8rem;color:var(--clr-muted);margin-top:0.2rem">
             Anotado el {{ new Date(v.fecha).toLocaleDateString('es-ES') }} 
@@ -335,6 +352,56 @@
           <div v-if="v.observaciones" style="margin-top:0.4rem; padding:0.5rem; background:var(--clr-surface2); border-radius:var(--radius); font-size:0.9rem">
             {{ v.observaciones }}
           </div>
+        </div>
+        
+        <button v-if="segTieneMas" class="btn btn-ghost" style="margin-top:1rem" @click="cargarSeguimiento(false)">
+          <span v-if="segCargando" class="spinner" style="width:16px;height:16px"></span>
+          <span v-else>Cargar más (50)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal edición Visita Seguimiento -->
+    <div v-if="segEditando" class="modal-overlay" @click.self="segEditando = null">
+      <div class="modal-box stack">
+        <h2>Editar registro de seguimiento</h2>
+        <div>
+          <label for="seg-edit-res">Resultado</label>
+          <select id="seg-edit-res" class="select" v-model="segEditForm.resultado">
+            <option value="no_aporta">No aporta</option>
+            <option value="no_abre">No abre</option>
+            <option value="reintentar">Reintentar</option>
+            <option value="pasara_por_local">Pasará por local</option>
+          </select>
+        </div>
+        <div>
+          <label for="seg-edit-obs">Observaciones</label>
+          <input id="seg-edit-obs" class="input" type="text" v-model="segEditForm.observaciones" />
+        </div>
+        
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--clr-border)">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+            <input type="checkbox" v-model="segCambiarDireccion" />
+            <span>Cambiar dirección</span>
+          </label>
+          <div v-if="segCambiarDireccion" style="margin-top:0.5rem" class="stack">
+            <div>
+              <label>1. Calle</label>
+              <BuscadorCalle v-model="segCalle" />
+            </div>
+            <div v-if="segCalle">
+              <label>2. Vivienda</label>
+              <SelectorVivienda v-model="segVivienda" />
+            </div>
+          </div>
+        </div>
+        
+        <div class="row" style="margin-top:1rem">
+          <button class="btn btn-ghost" @click="segEditando = null">Cancelar</button>
+          <button class="btn btn-primary" @click="segGuardarEdicion">
+            <span v-if="segGuardandoEdicion" class="spinner" style="width:16px;height:16px"></span>
+            <span v-else>Guardar</span>
+          </button>
         </div>
       </div>
     </div>
@@ -580,23 +647,121 @@ async function histBorrar() {
 // ==========================================
 const segVisitas = ref([])
 const segCargando = ref(false)
+const segTieneMas = ref(true)
+const segOffset = ref(0)
 const segFechaInicio = ref(new Date().toISOString().slice(0, 10))
 const segFechaFin = ref(new Date().toISOString().slice(0, 10))
+const segHoraInicio = ref('')
+const segHoraFin = ref('')
 const segResultado = ref('')
 
-async function cargarSeguimiento() {
+async function cargarSeguimiento(reset = true) {
+  if (reset) {
+    segOffset.value = 0
+    segVisitas.value = []
+    segTieneMas.value = true
+  }
+  if (!segTieneMas.value || segCargando.value) return
+
   segCargando.value = true
   try {
-    const params = { fecha_inicio: segFechaInicio.value, fecha_fin: segFechaFin.value }
-    if (segResultado.value) params.resultado = segResultado.value
-    const res = await api.get('/visitas', { params })
-    if (!segResultado.value) {
-      segVisitas.value = res.data.filter(v => v.resultado !== 'aporta')
-    } else {
-      segVisitas.value = res.data
+    const params = { 
+      fecha_inicio: segFechaInicio.value, 
+      fecha_fin: segFechaFin.value,
+      limit: 50,
+      offset: segOffset.value
     }
+    if (segResultado.value) params.resultado = segResultado.value
+    
+    if (segHoraInicio.value) {
+      params.creado_en_inicio = `${segFechaInicio.value}T${segHoraInicio.value}:00`
+    }
+    if (segHoraFin.value) {
+      params.creado_en_fin = `${segFechaFin.value}T${segHoraFin.value}:59`
+    }
+
+    const res = await api.get('/visitas', { params })
+    let data = res.data
+    
+    if (!segResultado.value) {
+      data = data.filter(v => v.resultado !== 'aporta')
+    }
+
+    if (data.length < 50) segTieneMas.value = false
+    segVisitas.value.push(...data)
+    segOffset.value += 50
   } finally {
     segCargando.value = false
+  }
+}
+
+// Lógica de edición de Seguimiento
+const segEditando = ref(null)
+const segEditForm = ref({ resultado: '', observaciones: '' })
+const segGuardandoEdicion = ref(false)
+const segCambiarDireccion = ref(false)
+const segCalle = ref(null)
+const segVivienda = ref({ portal: '', piso: '', puerta: '' })
+
+function segEditar(v) {
+  segEditando.value = v
+  segEditForm.value = {
+    resultado: v.resultado,
+    observaciones: v.observaciones || ''
+  }
+  segCambiarDireccion.value = false
+  segCalle.value = v.vivienda?.calle || null
+  segVivienda.value = {
+    portal: v.vivienda?.portal || '',
+    piso: v.vivienda?.piso || '',
+    puerta: v.vivienda?.puerta || ''
+  }
+}
+
+async function segGuardarEdicion() {
+  segGuardandoEdicion.value = true
+  try {
+    const body = { ...segEditForm.value }
+    if (!body.observaciones) body.observaciones = null
+
+    if (segCambiarDireccion.value) {
+      if (!segCalle.value || !segVivienda.value.portal) {
+        mostrarToast('Debes indicar calle y portal', true)
+        segGuardandoEdicion.value = false
+        return
+      }
+      const resCheck = await api.get('/viviendas', {
+        params: {
+          calle_id: segCalle.value.id,
+          portal: segVivienda.value.portal,
+          piso: segVivienda.value.piso || undefined,
+          puerta: segVivienda.value.puerta || undefined,
+        }
+      })
+      let vId = null
+      if (resCheck.data.length > 0) {
+        vId = resCheck.data[0].id
+      } else {
+        const resCrear = await api.post('/viviendas', {
+          calle_id: segCalle.value.id,
+          portal: segVivienda.value.portal,
+          piso: segVivienda.value.piso || null,
+          puerta: segVivienda.value.puerta || null,
+        })
+        vId = resCrear.data.id
+      }
+      body.vivienda_id = vId
+    }
+
+    await api.patch(`/visitas/${segEditando.value.id}`, body)
+    segEditando.value = null
+    mostrarToast('Visita guardada correctamente')
+    // Refresh to see changes
+    cargarSeguimiento(true)
+  } catch (e) {
+    mostrarToast(e.response?.data?.detail || 'Error al guardar', true)
+  } finally {
+    segGuardandoEdicion.value = false
   }
 }
 
