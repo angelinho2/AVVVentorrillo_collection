@@ -683,11 +683,12 @@ async function cargarSeguimiento(reset = true) {
     const res = await api.get('/visitas', { params })
     let data = res.data
     
+    if (res.data.length < 50) segTieneMas.value = false
+
     if (!segResultado.value) {
       data = data.filter(v => v.resultado !== 'aporta')
     }
 
-    if (data.length < 50) segTieneMas.value = false
     segVisitas.value.push(...data)
     segOffset.value += 50
   } finally {
